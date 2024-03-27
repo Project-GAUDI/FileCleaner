@@ -68,7 +68,7 @@ FileCleanerは、フォルダ/ファイルを監視し、移動/削除/圧縮を
 
 | Module Version | IoTEdge | edgeAgent | edgeHub  | amd64 verified on | arm64v8 verified on | arm32v7 verified on |
 | -------------- | ------- | --------- | -------- | ----------------- | ------------------- | ------------------- |
-| 1.0.0          | 1.4.27  | 1.4.27    | 1.4.27   | ubuntu20.04       | －                  | －                  |
+| 4.0.2          | 1.4.27  | 1.4.27    | 1.4.27   | ubuntu20.04       | －                  | －                  |
 
 
 ## Deployment 設定値
