@@ -56,7 +56,35 @@ FileCleanerは、フォルダ/ファイルを監視し、移動/削除/圧縮を
     → ファイルの先頭文字が"20201019"以前のファイルが対象<br>
 
 ## Quick Start
-鋭意製作中
+1. Personal Accese tokenを作成
+（参考: [個人用アクセス トークンを管理する](https://docs.github.com/ja/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)）
+
+2. リポジトリをクローン
+```
+git clone https://github.com/Project-GAUDI/FileCleaner.git
+```
+
+3. ./src/nuget_template.configの<GITHUB_USERNAME>と<PERSONAL_ACCESS_TOKEN>を自身のユーザー名とPersonal Accese tokenに書き換えて、ファイル名をnuget.configに変更してください
+
+4. Dockerイメージをビルド
+```
+docker image build -t <IMAGE_NAME> ./FileCleaner/src/
+```
+例）
+```
+docker image build -t ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION> ./FileCleaner/src/
+```
+
+5. Dockerイメージをコンテナレジストリにプッシュ
+```
+docker push <IMAGE_NAME>
+```
+例）
+```
+docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
+```
+
+6. Azure IoT edgeで利用
 
 ## イメージのURL
 準備中
