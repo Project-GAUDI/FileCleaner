@@ -2,8 +2,10 @@ using System;
 using Xunit;
 using Xunit.Abstractions;
 using System.Threading.Tasks;
+using TICO.GAUDI.Commons;
+using TICO.GAUDI.Commons.Test;
 
-namespace FileCleaner
+namespace IotedgeV2FileCleaner.Test
 {
     public class FileCleanerTest
     {

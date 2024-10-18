@@ -6,13 +6,15 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace FileCleaner
+namespace IotedgeV2FileCleaner
 {
     // <summary>
     // desiredProperties情報格納
     // </summary>
     internal class TargetInfo
     {
+        private static ILogger MyLogger { get; } = LoggerFactory.GetLogger(typeof(TargetInfo));
+
         public int InfoNumber { get; private set; } = 0;
         public object LockObject { get; } = new object();
         public bool IsExecuting { get; set; } = false;
@@ -72,6 +74,8 @@ namespace FileCleaner
         /// <returns></returns>
         public static TargetInfo CreateInstance(JObject jobj, int info_number)
         {
+            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: CreateInstance");
+
             JToken token1;
             var ret = new TargetInfo(info_number);
 
@@ -91,37 +95,49 @@ namespace FileCleaner
             ret.Second = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_SECOND);
             if (string.IsNullOrEmpty(ret.Second))
             {
-                throw new Exception($"Property '{Const.DP_KEY_SECOND}' dose not exist.");
+                var errmsg = $"Property '{Const.DP_KEY_SECOND}' dose not exist.";
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                throw new Exception(errmsg);
             }
 
             ret.Minute = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_MINUTE);
             if (string.IsNullOrEmpty(ret.Minute))
             {
-                throw new Exception($"Property '{Const.DP_KEY_MINUTE}' dose not exist.");
+                var errmsg = $"Property '{Const.DP_KEY_MINUTE}' dose not exist.";
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                throw new Exception(errmsg);
             }
 
             ret.Hour = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_HOUR);
             if (string.IsNullOrEmpty(ret.Hour))
             {
-                throw new Exception($"Property '{Const.DP_KEY_HOUR}' dose not exist.");
+                var errmsg = $"Property '{Const.DP_KEY_HOUR}' dose not exist.";
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                throw new Exception(errmsg);
             }
 
             ret.Day = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_DAY);
             if (string.IsNullOrEmpty(ret.Day))
             {
-                throw new Exception($"Property '{Const.DP_KEY_DAY}' dose not exist.");
+                var errmsg = $"Property '{Const.DP_KEY_DAY}' dose not exist.";
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                throw new Exception(errmsg);
             }
 
             ret.Month = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_MONTH);
             if (string.IsNullOrEmpty(ret.Month))
             {
-                throw new Exception($"Property '{Const.DP_KEY_MONTH}' dose not exist.");
+                var errmsg = $"Property '{Const.DP_KEY_MONTH}' dose not exist.";
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                throw new Exception(errmsg);
             }
 
             ret.Week = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_WEEK);
             if (string.IsNullOrEmpty(ret.Week))
             {
-                throw new Exception($"Property '{Const.DP_KEY_WEEK}' dose not exist.");
+                var errmsg = $"Property '{Const.DP_KEY_WEEK}' dose not exist.";
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                throw new Exception(errmsg);
             }
 
             //
@@ -140,7 +156,9 @@ namespace FileCleaner
             }
             if (!modeMatch)
             {
-                throw new Exception($"Property '{Const.DP_KEY_MODE}' is not expected string.");
+                var errmsg = $"Property '{Const.DP_KEY_MODE}' is not expected string.";
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                throw new Exception(errmsg);
             }
 
             var targetstr = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_TARGETTYPE).ToUpper();
@@ -156,7 +174,9 @@ namespace FileCleaner
             }
             if (!targetMatch)
             {
-                throw new Exception($"Property '{Const.DP_KEY_TARGETTYPE}' is not expected string.");
+                var errmsg = $"Property '{Const.DP_KEY_TARGETTYPE}' is not expected string.";
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                throw new Exception(errmsg);
             }
 
             if (jobj.TryGetValue(Const.DP_KEY_SCH_OPTION, out token1))
@@ -174,7 +194,9 @@ namespace FileCleaner
                 }
                 if (!schoptMatch)
                 {
-                    throw new Exception($"Property '{Const.DP_KEY_SCH_OPTION}' is not expected string.");
+                    var errmsg = $"Property '{Const.DP_KEY_SCH_OPTION}' is not expected string.";
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                    throw new Exception(errmsg);
                 }
             }
 
@@ -192,7 +214,9 @@ namespace FileCleaner
             ret.InputPath = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_INPUT_PATH);
             if (string.IsNullOrEmpty(ret.InputPath))
             {
-                throw new Exception($"Property '{Const.DP_KEY_INPUT_PATH}' dose not exist.");
+                var errmsg = $"Property '{Const.DP_KEY_INPUT_PATH}' dose not exist.";
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                throw new Exception(errmsg);
             }
 
             if (ret.Mode == Const.Mode.COMPRESS || ret.Mode == Const.Mode.COMPRESS_AND_DELETE || ret.Mode == Const.Mode.MOVE)
@@ -200,11 +224,15 @@ namespace FileCleaner
                 ret.OutputPath = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_OUTPUT_PATH);
                 if (string.IsNullOrEmpty(ret.OutputPath))
                 {
-                    throw new Exception($"Property '{Const.DP_KEY_OUTPUT_PATH}' dose not exist.");
+                    var errmsg = $"Property '{Const.DP_KEY_OUTPUT_PATH}' dose not exist.";
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                    throw new Exception(errmsg);
                 }
                 if (ret.Mode == Const.Mode.MOVE && ret.OutputPath.Equals(ret.InputPath))
                 {
-                    throw new Exception($"Property '{Const.DP_KEY_INPUT_PATH}' and '{Const.DP_KEY_OUTPUT_PATH}' are same value.");
+                    var errmsg = $"Property '{Const.DP_KEY_INPUT_PATH}' and '{Const.DP_KEY_OUTPUT_PATH}' are same value.";
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                    throw new Exception(errmsg);
                 }
             }
 
@@ -213,15 +241,21 @@ namespace FileCleaner
                 ret.CompressWorkPath = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_COMP_WORK_PATH);
                 if (string.IsNullOrEmpty(ret.CompressWorkPath))
                 {
-                    throw new Exception($"Property '{Const.DP_KEY_COMP_WORK_PATH}' dose not exist.");
+                    var errmsg = $"Property '{Const.DP_KEY_COMP_WORK_PATH}' dose not exist.";
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                    throw new Exception(errmsg);
                 }
                 if (ret.CompressWorkPath.Equals(ret.InputPath))
                 {
-                    throw new Exception($"Property '{Const.DP_KEY_INPUT_PATH}' and '{Const.DP_KEY_COMP_WORK_PATH}' are same value.");
+                    var errmsg = $"Property '{Const.DP_KEY_INPUT_PATH}' and '{Const.DP_KEY_COMP_WORK_PATH}' are same value.";
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                    throw new Exception(errmsg);
                 }
                 if (ret.CompressWorkPath.Equals(ret.OutputPath))
                 {
-                    throw new Exception($"Property '{Const.DP_KEY_OUTPUT_PATH}' and '{Const.DP_KEY_COMP_WORK_PATH}' are same value.");
+                    var errmsg = $"Property '{Const.DP_KEY_OUTPUT_PATH}' and '{Const.DP_KEY_COMP_WORK_PATH}' are same value.";
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                    throw new Exception(errmsg);
                 }
             }
 
@@ -251,7 +285,9 @@ namespace FileCleaner
                 }
                 if (!judgeMatch)
                 {
-                    throw new Exception($"Property '{Const.DP_KEY_ELAP_JUDGE_TYPE}' is not expected string.");
+                    var errmsg = $"Property '{Const.DP_KEY_ELAP_JUDGE_TYPE}' is not expected string.";
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                    throw new Exception(errmsg);
                 }
 
                 if (elapsedObj.TryGetValue(Const.DP_KEY_ELAP_GRP_NAME, out token1))
@@ -307,7 +343,9 @@ namespace FileCleaner
                     ret.CompressFilenameInfo.FilenameBase = Util.GetRequiredValue<string>(compObj, Const.DP_KEY_COMP_FILENM_BASE);
                     if (string.IsNullOrEmpty(ret.CompressFilenameInfo.FilenameBase))
                     {
-                        throw new Exception($"Property '{Const.DP_KEY_COMP_FILENM_BASE}' dose not exist.");
+                        var errmsg = $"Property '{Const.DP_KEY_COMP_FILENM_BASE}' dose not exist.";
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                        throw new Exception(errmsg);
                     }
 
                     for (int i = 1; compObj.TryGetValue(Const.DP_KEY_COMP_FILENM_REPLACE_PARAM + i.ToString("D"), out JToken token); i++)
@@ -320,7 +358,9 @@ namespace FileCleaner
                         param.BaseName = Util.GetRequiredValue<string>(paramObj, Const.DP_KEY_COMP_FILENM_REPLACE_BASE_NAME);
                         if (string.IsNullOrEmpty(param.BaseName))
                         {
-                            throw new Exception($"Property '{Const.DP_KEY_COMP_FILENM_REPLACE_BASE_NAME}' dose not exist.");
+                            var errmsg = $"Property '{Const.DP_KEY_COMP_FILENM_REPLACE_BASE_NAME}' dose not exist.";
+                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                            throw new Exception(errmsg);
                         }
 
                         var replacetypestr = Util.GetRequiredValue<string>(paramObj, Const.DP_KEY_COMP_FILENM_REPLACE_TYPE).ToUpper();
@@ -336,13 +376,17 @@ namespace FileCleaner
                         }
                         if (!replacetypeMatch)
                         {
-                            throw new Exception($"Property '{Const.DP_KEY_COMP_FILENM_REPLACE_TYPE}' is not expected string.");
+                            var errmsg = $"Property '{Const.DP_KEY_COMP_FILENM_REPLACE_TYPE}' is not expected string.";
+                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                            throw new Exception(errmsg);
                         }
 
                         param.ReplaceValue = Util.GetRequiredValue<string>(paramObj, Const.DP_KEY_COMP_FILENM_REPLACE_VALUE);
                         if (string.IsNullOrEmpty(param.ReplaceValue))
                         {
-                            throw new Exception($"Property '{Const.DP_KEY_COMP_FILENM_REPLACE_VALUE}' dose not exist.");
+                            var errmsg = $"Property '{Const.DP_KEY_COMP_FILENM_REPLACE_VALUE}' dose not exist.";
+                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                            throw new Exception(errmsg);
                         }
                     }
                 }
@@ -351,14 +395,18 @@ namespace FileCleaner
             // ディレクトリ存在チェック(inputpath)
             if (!Directory.Exists(ret.InputPath))
             {
-                throw new Exception($"{Const.DP_KEY_INPUT_PATH} [{ret.InputPath}] does not exist.");
+                var errmsg = $"{Const.DP_KEY_INPUT_PATH} [{ret.InputPath}] does not exist.";
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                throw new Exception(errmsg);
             }
             // ディレクトリ存在チェック(outputpath)
             if (ret.Mode == Const.Mode.COMPRESS || ret.Mode == Const.Mode.COMPRESS_AND_DELETE || ret.Mode == Const.Mode.MOVE)
             {
                 if (!Directory.Exists(ret.OutputPath))
                 {
-                    throw new Exception($"{Const.DP_KEY_OUTPUT_PATH} [{ret.OutputPath}] does not exist.");
+                    var errmsg = $"{Const.DP_KEY_OUTPUT_PATH} [{ret.OutputPath}] does not exist.";
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                    throw new Exception(errmsg);
                 }
             }
             // ディレクトリ存在チェック(compworkpath)
@@ -366,9 +414,13 @@ namespace FileCleaner
             {
                 if (!Directory.Exists(ret.CompressWorkPath))
                 {
-                    throw new Exception($"{Const.DP_KEY_COMP_WORK_PATH} [{ret.CompressWorkPath}] does not exist.");
+                    var errmsg = $"{Const.DP_KEY_COMP_WORK_PATH} [{ret.CompressWorkPath}] does not exist.";
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                    throw new Exception(errmsg);
                 }
             }
+
+            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: CreateInstance");
 
             return ret;
         }
@@ -457,6 +509,8 @@ namespace FileCleaner
 
     internal class CompressFileInfo
     {
+        private static ILogger MyLogger { get; } = LoggerFactory.GetLogger(typeof(CompressFileInfo));
+
         public string FilenameBase { get; set; } = "";
         public List<CompressFilenameReplaceParam> ReplaceParamList { get; } = new List<CompressFilenameReplaceParam>();
 
@@ -469,6 +523,8 @@ namespace FileCleaner
         /// <returns></returns>
         public string CreateFilename(Match matchObj, DateTime fileDt, DateTime nowDt)
         {
+            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: CreateFilename");
+
             string ret = this.FilenameBase;
             foreach (var replaceObj in this.ReplaceParamList)
             {
@@ -490,6 +546,9 @@ namespace FileCleaner
                 }
                 ret = ret.Replace(replaceObj.BaseName, replaceVal);
             }
+
+            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: CreateFilename");
+
             return ret;
         }
     }

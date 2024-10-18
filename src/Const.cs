@@ -1,4 +1,4 @@
-namespace FileCleaner
+namespace IotedgeV2FileCleaner
 {
     internal class Const
     {
