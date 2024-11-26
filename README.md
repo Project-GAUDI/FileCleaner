@@ -11,11 +11,14 @@
   * [環境変数](#環境変数)
   * [Desired Properties](#desired-properties)
   * [Create Option](#create-option)
+  * [startupOrder](#startuporder)
 * [受信メッセージ](#受信メッセージ)
 * [送信メッセージ](#送信メッセージ)
   * [Message Body](#message-body)
   * [Message Properties](#message-properties)
 * [Direct Method](#direct-method)
+  * [SetLogLevel](#setloglevel)
+  * [GetLogLevel](#getloglevel)
 * [ログ出力内容](#ログ出力内容)
 * [ユースケース](#ユースケース)
   * [ケース ①](#Usecase1)
@@ -96,8 +99,7 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 | Module Version | IoTEdge | edgeAgent | edgeHub  | amd64 verified on | arm64v8 verified on | arm32v7 verified on |
 | -------------- | ------- | --------- | -------- | ----------------- | ------------------- | ------------------- |
-| 4.0.2          | 1.4.27  | 1.4.27    | 1.4.27   | ubuntu20.04       | －                  | －                  |
-
+| 6.0.1          | 1.5.0   | 1.5.6     | 1.5.6    | ubuntu22.04       | －                  | －                  |
 
 ## Deployment 設定値
 
@@ -105,55 +107,53 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 #### 環境変数の値
 
-| Key               | Required | Default       | Description                                                                               |
-| ----------------- | -------- | ------------- | ----------------------------------------------------------------------------------------- |
-| TZ                |          | UTC           | コンテナのタイムゾーン。                                    |
-| TransportProtocol |          | Amqp          | ModuleClientの接続プロトコル。<br>["Amqp", "Mqtt"]                        |
-| LogLevel          |          | info          | 出力ログレベル。<br>["trace", "debug", "info", "warn", "error"]       |
-| M2MqttFlag        |          | false         | 通信に利用するAPIの切り替えフラグ。<br>false ： IoTHubトピックのみ利用可能。<br>true ： IoTHubトピックとMqttトピックが利用可能。ただし、SasTokenの発行と設定が必要。|
-| SasToken          | △       |               | M2MqttFlag=true時必須。edgeHubと接続する際に必要なモジュール毎の署名。                                      |
+| Key                       | Required | Default | Recommend | Description                                                     |
+| ------------------------- | -------- | ------- | --------- | ---------------------------------------------------------------- |
+| TZ                        |          | UTC     |           | コンテナのタイムゾーン。                                    |
+| TransportProtocol         |          | Amqp    |           | ModuleClient の接続プロトコル。<br>["Amqp", "Mqtt"] |
+| LogLevel                  |          | info    |           | 出力ログレベル。<br>["trace", "debug", "info", "warn", "error"] |
 
 ### Desired Properties
 
 #### Desired Properties の値
 
-| JSON Key                           | Type    | Required | Default          | Description                                                                                                                                                                                                                                |
-| ---------------------------------- | ------- | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| info[x]                            | object  | 〇       |                  | [x]は連番の数字。                                                                                                                                                                                                                            |
-| &nbsp; job_name                    | string  |          | null             | jobのID(ログに出力されるのみ)。                                                                                                                                                                                                              |
-| &nbsp; timezone                    | string  |          | "UTC"            | 起動スケジュールのタイムゾーン設定。                                                                                                                                                                                                         |
-| &nbsp; second                      | string  | 〇       |                  | 秒(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; minute                      | string  | 〇       |                  | 分(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; hour                        | string  | 〇       |                  | 時(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; day                         | string  | 〇       |                  | 日(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; month                       | string  | 〇       |                  | 月(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; week                        | string  | 〇       |                  | 週(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; mode                        | string  | 〇       |                  | 実行モード (以下のいずれかを指定)。<br>①"delete"：削除<br>②"compress"：圧縮(zipのみ)<br>③"compress_and_delete"：圧縮して削除<br>④"move"：移動                                                                                                |
-| &nbsp; target_type                 | string  | 〇       |                  | ①"file"⇒ファイルを対象とする<br>②"directory" ：ディレクトリを対象とする                                                                                                                                                                    |
-| &nbsp; search_option               | string  |          | TopDirectoryOnly | 検索時のオプション(以下のいずれかを指定)。<br>①"TopDirectoryOnly"：入力ディレクトリ直下のみ検索<br>②"AllDirectories"：サブディレクトリも含めて検索                                                                                           |
-| &nbsp; move_overwrite              | boolean |          | true             | 移動時、移動先に同名ファイル(orディレクトリ)が存在する場合に上書きするかどうか。<br>\*falseを指定していた場合は、移動先に同名ファイルが存在すると例外が発生する。                                                                             |
-| &nbsp; input_path                  | string  |          | null             | 対象(ファイルorディレクトリ)を検索するディレクトリ。                                                                                                                                                                                         |
-| &nbsp; output_path                 | string  |          | null             | 移動先 or 圧縮ファイル保存先ディレクトリ。<br>\*modeが「移動」または「圧縮」の場合は必須。<br>\*modeが「移動」の場合、input_pathと同じ場合はエラー。<br>\*modeが「圧縮」の場合、input_pathと同じでもOK。                                           |
-| &nbsp; comp_workpath               | string  |          | null             | 圧縮時に使用するワークディレクトリ。<br>\*modeが「圧縮」の場合は必須。<br>\*input_path or output_pathと同じ場合はエラー。                                                                                                                        |
-| &nbsp; regex_pattern               | string  |          | null             | 対象とするファイル名orディレクトリ名のパターン(正規表現)。                                                                                                                                                                                   |
-| &nbsp; elapsed_time                | string  |          | null             | 対象とする経過日数を指定。                                                                                                                                                                                                                   |
-| &nbsp; &nbsp; judge_type           | object  |          | null             | 判定条件 (以下のいずれかを指定) 。<br>①"update_time"：ファイルの更新日時で判定<br>②"name_prefix"：ファイル名先頭文字(yyyyMMdd等)で判定<br>③"name_regex"：ファイル名パターン正規表現のグループ名から取得した値で判定                          |
-| &nbsp; &nbsp; group_name           | string  |          | null             | typeが"name_regex"の場合に指定。                                                                                                                                                                                                             |
-| &nbsp; &nbsp; date_format          | string  |          | "yyyyMMdd"       | typeが"name_prefix"、"name_regex"の場合に指定。                                                                                                                                                                                              |
-| &nbsp; &nbsp; day                  | number  |          | 0                | 経過時間(日)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
-| &nbsp; &nbsp; hour                 | number  |          | 0                | 経過時間(時)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
-| &nbsp; &nbsp; minute               | number  |          | 0                | 経過時間(分)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
-| &nbsp; &nbsp; second               | number  |          | 0                | 経過時間(秒)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
-| &nbsp; compress_file               | object  |          | null             | 圧縮先ファイル情報。 <br>\*modeが「圧縮」の場合に設定<br>\*省略した場合、圧縮元のファイル名 or ディレクトリ名。                                                                                                                                |
-| &nbsp; &nbsp; filename             | string  |          | null             | 圧縮ファイルのファイル名。<br>\*拡張子は含めない。<br>\*拡張子は固定で".zip"を付与。                                                                                                                                                             |
-| &nbsp; &nbsp; replace_param[y]     | object  |          | null             | [y]は連番の数字。<br>ファイル名の置換設定。                                                                                                                                                                                                    |
-| &nbsp; &nbsp; &nbsp; base_name     | string  |          | null             | 置換元文字列。                                                                                                                                                                                                                               |
-| &nbsp; &nbsp; &nbsp; replace_type  | string  |          | null             | 置換先文字列のタイプを指定 (以下のいずれかを指定)。<br>①"group_name"：ファイル名パターン正規表現のグループ名から取得した値<br>②"file_date"：圧縮するファイルの更新日時<br>③"now_date"：現在日時                                              |
-| &nbsp; &nbsp; &nbsp; replace_value | string  |          | null             | 置換先文字列の取得に使用。<br>①replace_typeが "group_name"…正規表現のグループ名を指定<br>②replace_typeが "file_date"…ToStringする際のformatを指定 ("yyyyMMdd" 等)<br>③replace_typeが "now_date"…ToStringする際のformatを指定 ("yyyyMMdd" 等) |
+| JSON Key                           | Type    | Required | Default          | Recommend | Description                                                                |
+| ---------------------------------- | ------- | -------- | ---------------- | --------- | ------------------------------------------------------------------------   |
+| info[x]                            | object  | 〇       |                  |           | [x]は連番の数字。                                                                                                                                                                                                                            |
+| &nbsp; job_name                    | string  |          | null             |           | jobのID(ログに出力されるのみ)。                                                                                                                                                                                                              |
+| &nbsp; timezone                    | string  |          | "UTC"            |           | 起動スケジュールのタイムゾーン設定。                                                                                                                                                                                                         |
+| &nbsp; second                      | string  | 〇       |                  |           | 秒(cron式)。                                                                                                                                                                                                                                 |
+| &nbsp; minute                      | string  | 〇       |                  |           | 分(cron式)。                                                                                                                                                                                                                                 |
+| &nbsp; hour                        | string  | 〇       |                  |           | 時(cron式)。                                                                                                                                                                                                                                 |
+| &nbsp; day                         | string  | 〇       |                  |           | 日(cron式)。                                                                                                                                                                                                                                 |
+| &nbsp; month                       | string  | 〇       |                  |           | 月(cron式)。                                                                                                                                                                                                                                 |
+| &nbsp; week                        | string  | 〇       |                  |           | 週(cron式)。                                                                                                                                                                                                                                 |
+| &nbsp; mode                        | string  | 〇       |                  |           | 実行モード (以下のいずれかを指定)。<br>①"delete"：削除<br>②"compress"：圧縮(zipのみ)<br>③"compress_and_delete"：圧縮して削除<br>④"move"：移動                                                                                                |
+| &nbsp; target_type                 | string  | 〇       |                  |           | ①"file"：ファイルを対象とする<br>②"directory" ：ディレクトリを対象とする                                                                                                                                                                    |
+| &nbsp; search_option               | string  |          | TopDirectoryOnly |           | 検索時のオプション(以下のいずれかを指定)。<br>①"TopDirectoryOnly"：入力ディレクトリ直下のみ検索<br>②"AllDirectories"：サブディレクトリも含めて検索                                                                                           |
+| &nbsp; move_overwrite              | boolean |          | true             |           | 移動時、移動先に同名ファイル(orディレクトリ)が存在する場合に上書きするかどうか。<br>\*falseを指定していた場合は、移動先に同名ファイルが存在すると例外が発生する。                                                                             |
+| &nbsp; input_path                  | string  | 〇       | 　　　　          |           | 対象(ファイルorディレクトリ)を検索するディレクトリ。                                                                                                                                                                                         |
+| &nbsp; output_path                 | string  |          | null             |           | 移動先 or 圧縮ファイル保存先ディレクトリ。<br>\*modeが「移動」または「圧縮」の場合は必須。<br>\*modeが「移動」の場合、input_pathと同じ場合はエラー。<br>\*modeが「圧縮」の場合、input_pathと同じでもOK。                                           |
+| &nbsp; comp_workpath               | string  |          | null             |           | 圧縮時に使用するワークディレクトリ。<br>\*modeが「圧縮」の場合は必須。<br>\*input_path or output_pathと同じ場合はエラー。                                                                                                                        |
+| &nbsp; regex_pattern               | string  |          | null             |           | 対象とするファイル名orディレクトリ名のパターン(正規表現)。                                                                                                                                                                                   |
+| &nbsp; elapsed_time                | string  |          | null             |           | 対象とする経過日数を指定。                                                                                                                                                                                                                   |
+| &nbsp; &nbsp; judge_type           | object  |          | null             |           | 判定条件 (以下のいずれかを指定) 。<br>①"update_time"：ファイルの更新日時で判定<br>②"name_prefix"：ファイル名先頭文字(yyyyMMdd等)で判定<br>③"name_regex"：ファイル名パターン正規表現のグループ名から取得した値で判定                          |
+| &nbsp; &nbsp; group_name           | string  |          | null             |           | typeが"name_regex"の場合に指定。                                                                                                                                                                                                             |
+| &nbsp; &nbsp; date_format          | string  |          | "yyyyMMdd"       |           | typeが"name_prefix"、"name_regex"の場合に指定。                                                                                                                                                                                              |
+| &nbsp; &nbsp; day                  | number  |          | 0                |           | 経過時間(日)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
+| &nbsp; &nbsp; hour                 | number  |          | 0                |           | 経過時間(時)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
+| &nbsp; &nbsp; minute               | number  |          | 0                |           | 経過時間(分)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
+| &nbsp; &nbsp; second               | number  |          | 0                |           | 経過時間(秒)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
+| &nbsp; compress_file               | object  |          | null             |           | 圧縮先ファイル情報。 <br>\*modeが「圧縮」の場合に設定<br>\*省略した場合、圧縮元のファイル名 or ディレクトリ名。                                                                                                                                |
+| &nbsp; &nbsp; filename             | string  |          | null             |           | 圧縮ファイルのファイル名。<br>\*拡張子は含めない。<br>\*拡張子は固定で".zip"を付与。                                                                                                                                                             |
+| &nbsp; &nbsp; replace_param[y]     | object  |          | null             |           | [y]は連番の数字。<br>ファイル名の置換設定。                                                                                                                                                                                                    |
+| &nbsp; &nbsp; &nbsp; base_name     | string  |          | null             |           | 置換元文字列。                                                                                                                                                                                                                               |
+| &nbsp; &nbsp; &nbsp; replace_type  | string  |          | null             |           | 置換先文字列のタイプを指定 (以下のいずれかを指定)。<br>①"group_name"：ファイル名パターン正規表現のグループ名から取得した値<br>②"file_date"：圧縮するファイルの更新日時<br>③"now_date"：現在日時                                              |
+| &nbsp; &nbsp; &nbsp; replace_value | string  |          | null             |           | 置換先文字列の取得に使用。<br>①replace_typeが "group_name"…正規表現のグループ名を指定<br>②replace_typeが "file_date"…ToStringする際のformatを指定 ("yyyyMMdd" 等)<br>③replace_typeが "now_date"…ToStringする際のformatを指定 ("yyyyMMdd" 等) |
 
 #### Desired Properties の記入例
 
-```
+```json
 {
   "info1": {
     "job_name": "val20 Backup Zip Delete",
@@ -187,14 +187,28 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 #### Create Option の記入例
 
-```
+```json
 {
   "HostConfig": {
     "Binds": ["/var/ftp/val20/Backup:/iotedge/val20/Backup"]
   }
 }
 ```
+### startupOrder
 
+#### startupOrder の値
+
+| JSON Key      | Type    | Required | Default | Recommend | Description |
+| ------------- | ------- | -------- | ------- | --------- | ----------- |
+| startupOrder  | uint    |  | 4294967295 | 400 | モジュールの起動順序。数字が小さいほど先に起動される。<br>["0"から"4294967295"] |
+
+#### startupOrder の記入例
+
+```json
+{
+  "startupOrder": 400
+}
+```
 ## 受信メッセージ
 
 なし
@@ -220,7 +234,77 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 ## Direct Method
 
-なし
+### SetLogLevel
+
+* 機能概要
+
+  実行中に一時的にLogLevelを変更する。<br>
+  変更はモジュール起動中または有効時間を過ぎるまで有効。<br>
+
+* payload
+
+  | JSON Key      | Type    | Required | default | Description |
+  | ------------- | ------- | -------- | -------- | ----------- |
+  | EnableSec     | integer  | 〇       |          | 有効時間(秒)。<br>-1:無期限<br>0:リセット(環境変数LogLevel相当に戻る)<br>1以上：指定時間(秒)経過まで有効。  |
+  | LogLevel      | string  | △       |          | EnableSec=0以外を指定時必須。指定したログレベルに変更する。<br>["trace", "debug", "info", "warn", "error"]  |
+
+  １時間"trace"レベルに変更する場合の設定例
+
+  ```json
+  {
+    "EnableSec": 3600,
+    "LogLevel": "trace"
+  }
+  ```
+
+* response
+
+  | JSON Key      | Type    | Description |
+  | ------------- | ------- | ----------- |
+  | status          | integer | 処理ステータス。<br>0:正常終了<br>その他:異常終了         |
+  | payload          | object  | レスポンスデータ。         |
+  | &nbsp; CurrentLogLevel | string  | 設定後のログレベル。（正常時のみ）<br>["trace", "debug", "info", "warn", "error"]  |
+  | &nbsp; Error | string  | エラーメッセージ（エラー時のみ）  |
+
+  ```json
+  {
+    "status": 0,
+    "paylaod":
+    {
+      "CurrentLogLevel": "trace"
+    }
+  }
+  ```
+
+### GetLogLevel
+
+* 機能概要
+
+  現在有効なLogLevelを取得する。<br>
+  通常は、LogLevel環境変数の設定値が返り、SetLogLevelで設定した有効時間内の場合は、その設定値が返る。<br>
+
+* payload
+
+  なし
+
+* response
+
+  | JSON Key      | Type    | Description |
+  | ------------- | ------- | ----------- |
+  | status          | integer | 処理ステータス。<br>0:正常終了<br>その他:異常終了         |
+  | payload          | object  | レスポンスデータ。         |
+  | &nbsp; CurrentLogLevel | string  | 現在のログレベル。（正常時のみ）<br>["trace", "debug", "info", "warn", "error"]  |
+  | &nbsp; Error | string  | エラーメッセージ（エラー時のみ）  |
+
+  ```json
+  {
+    "status": 0,
+    "paylaod":
+    {
+      "CurrentLogLevel": "trace"
+    }
+  }
+  ```
 
 ## ログ出力内容
 
@@ -244,7 +328,7 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 #### desiredProperties
 
-```
+```JSON
 {
   "info1": {
     "job_name": "val20 Backup Zip Delete",
@@ -276,7 +360,7 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 #### Container Create Options
 
-```
+```JSON
 {
   "HostConfig": {
     "Binds": [
@@ -311,7 +395,7 @@ ex.格納されるファイルと削除する条件
 
 #### desiredProperties
 
-```
+```JSON
 {
   "info1": {
     "job_name": "val20 Backup CSV Compress",
@@ -355,7 +439,7 @@ ex.格納されるファイルと削除する条件
 
 #### Container Create Options
 
-```
+```JSON
 {
   "HostConfig": {
     "Binds": [
@@ -405,7 +489,7 @@ ex.格納されるファイルと圧縮・削除する条件
 
 #### desiredProperties
 
-```
+```JSON
 {
   "info1": {
     "job_name": "val20 Backup CSV Move",
@@ -439,7 +523,7 @@ ex.格納されるファイルと圧縮・削除する条件
 
 #### Container Create Options
 
-```
+```JSON
 {
   "HostConfig": {
     "Binds": [
@@ -472,6 +556,9 @@ ex.格納されるファイルと移動・圧縮する条件
 
 3. ファイルの移動先のフォルダのパスは"/iotedge/val20/Old"とする
 4. 移動処理は火水木金土日曜日の 05:05:00 (日本時間)にそれぞれ1回実行する
+
+出力結果：<br>
+条件に合致するファイルが"/iotedge/val20/Old"に移動する
 
 出力結果：<br>
 条件に合致するファイルが"/iotedge/val20/Old"に移動する
