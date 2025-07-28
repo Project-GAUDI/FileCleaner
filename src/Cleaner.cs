@@ -501,6 +501,76 @@ namespace IotedgeV2FileCleaner
         }
 
         /// <summary>
+        /// ファイルをコピーする(MoveHelperから呼び出す用)
+        /// </summary>
+        /// <param name="fromFileinfo">コピー元(FileInfo)</param>
+        /// <param name="toPath">コピー先パス(string)</param>
+        /// <param name="overwrite">上書きするかどうか</param>
+        internal static void CopyFile_MoveHelper(FileInfo fromFileinfo, string toPath, bool overwrite)
+        {
+            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
+
+            string outputPath = Path.Combine(toPath, fromFileinfo.Name);
+            string backupPath = null;
+            bool needRestore = false;
+            bool actualOverwrite = overwrite;
+            
+            try
+            {
+                // 上書きモードがtrueで、コピー先ファイルが存在する場合はバックアップ
+                if (actualOverwrite && File.Exists(outputPath))
+                {
+                    backupPath = outputPath + ".bak_" + DateTime.Now.ToString("yyyyMMddHHmmss");
+                    MyLogger.WriteLog(ILogger.LogLevel.DEBUG, $"Renaming existing file to: {backupPath}");
+                    File.Move(outputPath, backupPath);
+                    needRestore = true;
+                    
+                    // 上書きモードでバックアップした場合は、falseに変更（既に移動済みなので）
+                    actualOverwrite = false;
+                }
+                
+                // ファイルをコピー
+                fromFileinfo.CopyTo(outputPath, actualOverwrite);
+                File.SetCreationTimeUtc(outputPath, fromFileinfo.CreationTimeUtc);
+                File.SetLastWriteTimeUtc(outputPath, fromFileinfo.LastWriteTimeUtc);
+                File.SetLastAccessTimeUtc(outputPath, fromFileinfo.LastAccessTimeUtc);
+                File.SetAttributes(outputPath, fromFileinfo.Attributes);
+                
+                // バックアップがあれば削除
+                if (backupPath != null)
+                {
+                    MyLogger.WriteLog(ILogger.LogLevel.DEBUG, $"Copy successful, removing backup file: {backupPath}");
+                    File.Delete(backupPath);
+                    needRestore = false;
+                }
+            }
+            catch
+            {
+                // エラー発生時、バックアップからの復元が必要な場合
+                if (needRestore && backupPath != null)
+                {
+                    MyLogger.WriteLog(ILogger.LogLevel.ERROR, $"Copy failed, restoring from backup: {backupPath}");
+                    
+                    // コピー先に不完全なファイルがあれば削除
+                    if (File.Exists(outputPath))
+                    {
+                        File.Delete(outputPath);
+                    }
+                    
+                    // バックアップを元の名前に戻す
+                    File.Move(backupPath, outputPath);
+                }
+                
+                // 例外を再スロー
+                var errmsg = "Failed to copy file.";
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: {System.Reflection.MethodBase.GetCurrentMethod().Name} caused by {errmsg}");
+                throw;
+            }
+
+            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
+        }
+
+        /// <summary>
         /// ディレクトリをサブディレクトリを含めてコピーする
         /// 例) fromDirinfo : /inputdir/test1
         ///     toPath      : /outputdir
@@ -544,6 +614,45 @@ namespace IotedgeV2FileCleaner
             foreach (var dirinfo in fromDirinfo.GetDirectories())
             {
                 CopyDirectory(dirinfo, outputPath, overwrite);
+            }
+
+            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
+        }
+
+        internal static void CopyDirectory_MoveHelper(DirectoryInfo fromDirinfo, string toPath, bool overwrite)
+        {
+            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
+
+            // コピー先ディレクトリ存在チェック
+            string outputPath = Path.Combine(toPath, fromDirinfo.Name);
+            if (Directory.Exists(outputPath))
+            {
+                if (!overwrite)
+                {
+                    var errmsg = $"Directory '{outputPath}' is already exists.";
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CopyDirectory_MoveHelper caused by {errmsg}");
+                    throw new Exception(errmsg);
+                }
+            }
+            else
+            {
+                // コピー先ディレクトリが無ければ作成
+                Directory.CreateDirectory(outputPath);
+                Directory.SetCreationTimeUtc(outputPath, fromDirinfo.CreationTimeUtc);
+                Directory.SetLastWriteTimeUtc(outputPath, fromDirinfo.LastWriteTimeUtc);
+                Directory.SetLastAccessTimeUtc(outputPath, fromDirinfo.LastAccessTimeUtc);
+                new DirectoryInfo(outputPath).Attributes = fromDirinfo.Attributes;
+            }
+
+            // コピー元ディレクトリ内のファイルを全てコピー先へコピー
+            foreach (var fileinfo in fromDirinfo.GetFiles())
+            {
+                CopyFile_MoveHelper(fileinfo, outputPath, overwrite);
+            }
+            // コピー元ディレクトリ内のサブディレクトリを全てコピー先へコピー
+            foreach (var dirinfo in fromDirinfo.GetDirectories())
+            {
+                CopyDirectory_MoveHelper(dirinfo, outputPath, overwrite);
             }
 
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
@@ -845,13 +954,13 @@ namespace IotedgeV2FileCleaner
                     if (this.Info.TargetType == Const.TargetType.FILE)
                     {
                         MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': move file. '{relativePath}' -> '{this.Info.OutputPath}'");
-                        Cleaner.CopyFile((FileInfo)filesysinfo, this.Info.OutputPath, this.Info.MoveOverwrite);
+                        Cleaner.CopyFile_MoveHelper((FileInfo)filesysinfo, this.Info.OutputPath, this.Info.MoveOverwrite);
                         filesysinfo.Delete();
                     }
                     else
                     {
                         MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': move directory. '{relativePath}' -> '{this.Info.OutputPath}'");
-                        Cleaner.CopyDirectory((DirectoryInfo)filesysinfo, this.Info.OutputPath, this.Info.MoveOverwrite);
+                        Cleaner.CopyDirectory_MoveHelper((DirectoryInfo)filesysinfo, this.Info.OutputPath, this.Info.MoveOverwrite);
                         ((DirectoryInfo)filesysinfo).Delete(true);
                     }
                 }
