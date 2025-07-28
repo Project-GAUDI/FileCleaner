@@ -59,7 +59,7 @@ FileCleanerは、フォルダ/ファイルを監視し、移動/削除/圧縮を
     → ファイルの先頭文字が"20201019"以前のファイルが対象<br>
 
 ## Quick Start
-1. Personal Accese tokenを作成
+1. Personal Access tokenを作成
 （参考: [個人用アクセス トークンを管理する](https://docs.github.com/ja/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)）
 
 2. リポジトリをクローン
@@ -67,7 +67,7 @@ FileCleanerは、フォルダ/ファイルを監視し、移動/削除/圧縮を
 git clone https://github.com/Project-GAUDI/FileCleaner.git
 ```
 
-3. ./src/nuget_template.configの<GITHUB_USERNAME>と<PERSONAL_ACCESS_TOKEN>を自身のユーザー名とPersonal Accese tokenに書き換えて、ファイル名をnuget.configに変更してください
+3. ./src/nuget_template.configの<GITHUB_USERNAME>と<PERSONAL_ACCESS_TOKEN>を自身のユーザー名とPersonal Access tokenに書き換えて、ファイル名をnuget.configに変更してください
 
 4. Dockerイメージをビルド
 ```
@@ -97,9 +97,9 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 ## 動作保証環境
 
-| Module Version | IoTEdge | edgeAgent | edgeHub  | amd64 verified on | arm64v8 verified on | arm32v7 verified on |
-| -------------- | ------- | --------- | -------- | ----------------- | ------------------- | ------------------- |
-| 6.0.1          | 1.5.0   | 1.5.6     | 1.5.6    | ubuntu22.04       | －                  | －                  |
+| Module Version | IoTEdge         | edgeAgent       | edgeHub         | amd64 verified on | arm64v8 verified on | arm32v7 verified on |
+| -------------- | --------------- | --------------- | --------------- | ----------------- | ------------------- | ------------------- |
+| 6.0.4          | 1.5.0<br>1.5.16 | 1.5.6<br>1.5.19 | 1.5.6<br>1.5.19 | ubuntu22.04       | －                  | －                  |
 
 ## Deployment 設定値
 
@@ -109,7 +109,7 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 | Key                       | Required | Default | Recommend | Description                                                     |
 | ------------------------- | -------- | ------- | --------- | ---------------------------------------------------------------- |
-| TZ                        |          | UTC     |           | コンテナのタイムゾーン。                                    |
+| TZ                        |          | UTC     | Asia/Tokyo | コンテナのタイムゾーン。 ホスト環境のタイムゾーンと合わせることを推奨。                                   |
 | TransportProtocol         |          | Amqp    |           | ModuleClient の接続プロトコル。<br>["Amqp", "Mqtt"] |
 | LogLevel                  |          | info    |           | 出力ログレベル。<br>["trace", "debug", "info", "warn", "error"] |
 
@@ -121,20 +121,20 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 | ---------------------------------- | ------- | -------- | ---------------- | --------- | ------------------------------------------------------------------------   |
 | info[x]                            | object  | 〇       |                  |           | [x]は連番の数字。                                                                                                                                                                                                                            |
 | &nbsp; job_name                    | string  |          | null             |           | jobのID(ログに出力されるのみ)。                                                                                                                                                                                                              |
-| &nbsp; timezone                    | string  |          | "UTC"            |           | 起動スケジュールのタイムゾーン設定。                                                                                                                                                                                                         |
+| &nbsp; timezone                    | string  |          | "UTC"            | "Asia/Tokyo" | 起動スケジュールのタイムゾーン設定。ホスト環境のタイムゾーンと合わせることを推奨。                                                                                                   |
 | &nbsp; second                      | string  | 〇       |                  |           | 秒(cron式)。                                                                                                                                                                                                                                 |
 | &nbsp; minute                      | string  | 〇       |                  |           | 分(cron式)。                                                                                                                                                                                                                                 |
 | &nbsp; hour                        | string  | 〇       |                  |           | 時(cron式)。                                                                                                                                                                                                                                 |
 | &nbsp; day                         | string  | 〇       |                  |           | 日(cron式)。                                                                                                                                                                                                                                 |
 | &nbsp; month                       | string  | 〇       |                  |           | 月(cron式)。                                                                                                                                                                                                                                 |
 | &nbsp; week                        | string  | 〇       |                  |           | 週(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; mode                        | string  | 〇       |                  |           | 実行モード (以下のいずれかを指定)。<br>①"delete"：削除<br>②"compress"：圧縮(zipのみ)<br>③"compress_and_delete"：圧縮して削除<br>④"move"：移動                                                                                                |
+| &nbsp; mode                        | string  | 〇       |                  |           | 実行モード (以下のいずれかを指定)。<br>①"delete"：削除<br>②"compress"：圧縮(zipのみ)。元ファイルは残る。<br>③"compress_and_delete"：圧縮して削除。圧縮後、元ファイルを削除する。<br>④"move"：移動                                                                                                |
 | &nbsp; target_type                 | string  | 〇       |                  |           | ①"file"：ファイルを対象とする<br>②"directory" ：ディレクトリを対象とする                                                                                                                                                                    |
-| &nbsp; search_option               | string  |          | TopDirectoryOnly |           | 検索時のオプション(以下のいずれかを指定)。<br>①"TopDirectoryOnly"：入力ディレクトリ直下のみ検索<br>②"AllDirectories"：サブディレクトリも含めて検索                                                                                           |
+| &nbsp; search_option               | string  |          | TopDirectoryOnly |           | 検索時のオプション(以下のいずれかを指定)。<br>①"TopDirectoryOnly"：入力ディレクトリ直下のみ検索<br>②"AllDirectories"：サブディレクトリも含めて検索<br>\* target_type="file"時のみ有効。target_type="directory"の場合は、検索対象ディレクトリ直下の条件を満たすディレクトリ配下全てが処理対象となる。
 | &nbsp; move_overwrite              | boolean |          | true             |           | 移動時、移動先に同名ファイル(orディレクトリ)が存在する場合に上書きするかどうか。<br>\*falseを指定していた場合は、移動先に同名ファイルが存在すると例外が発生する。                                                                             |
 | &nbsp; input_path                  | string  | 〇       | 　　　　          |           | 対象(ファイルorディレクトリ)を検索するディレクトリ。                                                                                                                                                                                         |
-| &nbsp; output_path                 | string  |          | null             |           | 移動先 or 圧縮ファイル保存先ディレクトリ。<br>\*modeが「移動」または「圧縮」の場合は必須。<br>\*modeが「移動」の場合、input_pathと同じ場合はエラー。<br>\*modeが「圧縮」の場合、input_pathと同じでもOK。                                           |
-| &nbsp; comp_workpath               | string  |          | null             |           | 圧縮時に使用するワークディレクトリ。<br>\*modeが「圧縮」の場合は必須。<br>\*input_path or output_pathと同じ場合はエラー。                                                                                                                        |
+| &nbsp; output_path                 | string  | △       | null             |           | 移動先 or 圧縮ファイル保存先ディレクトリ。<br>\*modeが「移動」「圧縮」または「圧縮して削除」の場合は必須。<br>\*modeが「移動」の場合、input_pathと同じ場合はエラー。<br>\*modeが「圧縮」または「圧縮して削除」の場合、input_pathと同じでもOK。                                           |
+| &nbsp; comp_workpath               | string  | △       | null             |           | 圧縮時に使用するワークディレクトリ。<br>\*modeが「圧縮」または「圧縮して削除」の場合は必須。<br>\*input_path or output_pathと同じ場合はエラー。                                                                                                                        |
 | &nbsp; regex_pattern               | string  |          | null             |           | 対象とするファイル名orディレクトリ名のパターン(正規表現)。                                                                                                                                                                                   |
 | &nbsp; elapsed_time                | string  |          | null             |           | 対象とする経過日数を指定。                                                                                                                                                                                                                   |
 | &nbsp; &nbsp; judge_type           | object  |          | null             |           | 判定条件 (以下のいずれかを指定) 。<br>①"update_time"：ファイルの更新日時で判定<br>②"name_prefix"：ファイル名先頭文字(yyyyMMdd等)で判定<br>③"name_regex"：ファイル名パターン正規表現のグループ名から取得した値で判定                          |
@@ -144,7 +144,7 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 | &nbsp; &nbsp; hour                 | number  |          | 0                |           | 経過時間(時)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
 | &nbsp; &nbsp; minute               | number  |          | 0                |           | 経過時間(分)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
 | &nbsp; &nbsp; second               | number  |          | 0                |           | 経過時間(秒)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
-| &nbsp; compress_file               | object  |          | null             |           | 圧縮先ファイル情報。 <br>\*modeが「圧縮」の場合に設定<br>\*省略した場合、圧縮元のファイル名 or ディレクトリ名。                                                                                                                                |
+| &nbsp; compress_file               | object  |          | null             |           | 圧縮先ファイル情報。 <br>\*modeが「圧縮」または「圧縮して削除」の場合に設定可能。<br>\*省略した場合、圧縮元のファイル名 or ディレクトリ名。                                                                                                                                |
 | &nbsp; &nbsp; filename             | string  |          | null             |           | 圧縮ファイルのファイル名。<br>\*拡張子は含めない。<br>\*拡張子は固定で".zip"を付与。                                                                                                                                                             |
 | &nbsp; &nbsp; replace_param[y]     | object  |          | null             |           | [y]は連番の数字。<br>ファイル名の置換設定。                                                                                                                                                                                                    |
 | &nbsp; &nbsp; &nbsp; base_name     | string  |          | null             |           | 置換元文字列。                                                                                                                                                                                                                               |
@@ -157,7 +157,7 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 {
   "info1": {
     "job_name": "val20 Backup Zip Delete",
-    "timezone": "Japan",
+    "timezone": "Asia/Tokyo",
     "second": "0",
     "minute": "0/5",
     "hour": "*",
@@ -324,7 +324,7 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 ### ケース ①
 
-ある決まったフォルダに不定期間隔でアップロードされるファイルをファイル生成日時から一定時間経過後、削除する処理を決まった間隔で実行する。
+ある決まったフォルダに不定期間隔でアップロードされるファイルをファイル最終更新日時から一定時間経過後、削除する処理を決まった間隔で実行する。
 
 #### desiredProperties
 
@@ -332,7 +332,7 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 {
   "info1": {
     "job_name": "val20 Backup Zip Delete",
-    "timezone": "Japan",
+    "timezone": "Asia/Tokyo",
     "second": "0",
     "minute": "0/5",
     "hour": "*",
@@ -391,7 +391,7 @@ ex.格納されるファイルと削除する条件
 
 ### ケース ②
 
-ある決まったフォルダに不定期間隔でアップロードされるファイルをファイル生成日時から一定時間経過後、移動、圧縮、削除する処理を決まった時刻で実行する。
+ある決まったフォルダに不定期間隔でアップロードされるファイルをファイル最終更新日時から一定時間経過後、移動、圧縮、削除する処理を決まった時刻で実行する。
 
 #### desiredProperties
 
@@ -399,7 +399,7 @@ ex.格納されるファイルと削除する条件
 {
   "info1": {
     "job_name": "val20 Backup CSV Compress",
-    "timezone": "Japan",
+    "timezone": "Asia/Tokyo",
     "second": "0",
     "minute": "5",
     "hour": "5",
@@ -485,7 +485,7 @@ ex.格納されるファイルと圧縮・削除する条件
 
 ### ケース ③
 
-ある決まったフォルダに不定期間隔でアップロードされるファイルをファイル生成日時から一定時間経過後、移動する処理を決まった時刻で実行する。
+ある決まったフォルダに不定期間隔でアップロードされるファイルをファイル最終更新日時から一定時間経過後、移動する処理を決まった時刻で実行する。
 
 #### desiredProperties
 
@@ -493,7 +493,7 @@ ex.格納されるファイルと圧縮・削除する条件
 {
   "info1": {
     "job_name": "val20 Backup CSV Move",
-    "timezone": "Japan",
+    "timezone": "Asia/Tokyo",
     "second": "0",
     "minute": "5",
     "hour": "5",

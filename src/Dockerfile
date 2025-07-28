@@ -16,7 +16,7 @@ RUN chmod +x ./entrypoint.sh
 ARG TAGS
 RUN { \
     echo "module name : FileCleaner"; \
-    echo "module version : 6.0.1"; \
+    echo "module version : 6.0.4"; \
 } > ./application.info
 
 RUN useradd -ms /bin/bash moduleuser
