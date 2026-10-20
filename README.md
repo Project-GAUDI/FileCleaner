@@ -43,7 +43,7 @@ FileCleanerは、フォルダ/ファイルを監視し、移動/削除/圧縮を
 オプションで、ファイル検索方法や上書き制御を指定することができる。  
 また、処理対象の絞込みを行ったり、圧縮後のファイル名を指定したりすることができる。  
 
-![schematic diagram](./src/docs/img/schematic_diagram.drawio.png)
+![schematic diagram](./docs/img/schematic_diagram.drawio.png)
 
 <a id="JudgeMethod"></a>
 
@@ -390,7 +390,7 @@ FROM /messages/modules/<送信元Container名>/outputs/log INTO BrokeredEndpoint
 
 指定したディレクトリに存在する所定のファイル名のファイルを、保存して365日以上経過したら削除する。  
 
-![schematic diagram](./src/docs/img/usecase1_diagram.drawio.png)
+![schematic diagram](./docs/img/usecase1_diagram.drawio.png)
 
 #### 起動順序 startupOrder
 
@@ -458,7 +458,7 @@ FROM /messages/modules/<送信元Container名>/outputs/log INTO BrokeredEndpoint
 
 指定したディレクトリに存在する所定のファイル名のファイルを、ファイル名に含まれる日付文字列から1日以上経過したら、別ディレクトリに移動する。  
 
-![schematic diagram](./src/docs/img/usecase2_diagram.drawio.png)
+![schematic diagram](./docs/img/usecase2_diagram.drawio.png)
 
 #### 起動順序 startupOrder
 
@@ -534,7 +534,7 @@ FROM /messages/modules/<送信元Container名>/outputs/log INTO BrokeredEndpoint
 
 指定したディレクトリに存在する所定のファイル名のファイルを、ファイル名に含まれる日付文字列から1日以上経過したら、圧縮して同じディレクトリに保存後、元ファイルを削除する。  
 
-![schematic diagram](./src/docs/img/usecase3_diagram.drawio.png)
+![schematic diagram](./docs/img/usecase3_diagram.drawio.png)
 
 #### 起動順序 startupOrder
 
@@ -623,7 +623,7 @@ FROM /messages/modules/<送信元Container名>/outputs/log INTO BrokeredEndpoint
 指定したディレクトリ直下に存在する全てのディレクトリを、  
 保存して7日以上経過したら、圧縮して別ディレクトリに保存後、元ディレクトリを削除する。  
 
-![schematic diagram](./src/docs/img/usecase4_diagram.drawio.png)
+![schematic diagram](./docs/img/usecase4_diagram.drawio.png)
 
 #### 起動順序 startupOrder
 
