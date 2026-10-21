@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using TICO.GAUDI.Commons;
@@ -14,12 +15,40 @@ namespace IotedgeV2FileCleaner
     {
         static ILogger MyLogger { get; } = LoggerFactory.GetLogger(typeof(MyApplicationMain));
         static List<TargetInfo> TargetInfos { get; set; }
+        private int _disposed = 0; // 0: false, 1: true
 
-        public void Dispose()
+        /// <summary>
+        /// リソース解放
+        /// </summary>
+        /// <returns></returns>
+        public async ValueTask DisposeAsync()
         {
-            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: Dispose");
+            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: DisposeAsync");
 
-            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: Dispose");
+            // 2重実行防止
+            if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            {
+                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: Already disposed, skipping DisposeAsync");
+                return;
+            }
+
+            try
+            {
+                // ここでApplicationMainのリソース解放処理を行う
+                // 非同期リソースがある場合は適切に解放する
+                // ＝＝＝＝＝＝＝＝＝＝＝＝＝ここから＝＝＝＝＝＝＝＝＝＝＝＝＝
+
+                await Task.CompletedTask; // 非同期リソース解放処理をここに記述
+
+                // ＝＝＝＝＝＝＝＝＝＝＝＝＝ここまで＝＝＝＝＝＝＝＝＝＝＝＝＝
+            }
+            catch (Exception ex)
+            {
+                MyLogger.WriteLog(ILogger.LogLevel.ERROR, $"Error in DisposeAsync: {ex.Message}", true);
+                // 例外は再スローしない（Disposeでは通常例外を抑制）
+            }
+
+            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: DisposeAsync");
         }
 
         /// <summary>
@@ -47,7 +76,6 @@ namespace IotedgeV2FileCleaner
         /// アプリケーション起動処理					
         /// システム初期化完了後に呼び出される
         /// </summary>
-        /// <param name=""></param>
         /// <returns></returns>
         public async Task<bool> StartAsync()
         {

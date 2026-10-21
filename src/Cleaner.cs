@@ -263,33 +263,67 @@ namespace IotedgeV2FileCleaner
                     }
                 }
 
+                var errmsg = string.Empty;
+
                 // 圧縮
-                compObj.Execute();
+                bool isCompressionSuccess = compObj.Execute();
+                if (!isCompressionSuccess)
+                {
+                    errmsg += $"Compression failed.";
+                }
                 isCleanerRunning = IsRunning();
                 if (!isCleanerRunning)
                 {
                     var exitmsg = $"isCleanerRunning = {isCleanerRunning} after compress.";
                     MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: ExecuteFileCleaner caused by {exitmsg}");
+
+                    if (!isCompressionSuccess)
+                    {
+                        throw new Exception(errmsg);
+                    }
                     return;
                 }
                 // 削除
-                delObj.Execute();
+                bool isDeletionSuccess = delObj.Execute();
+                if (!isDeletionSuccess)
+                {
+                    errmsg += $"Deletion failed.";
+                }
                 isCleanerRunning = IsRunning();
                 if (!isCleanerRunning)
                 {
                     var exitmsg = $"isCleanerRunning = {isCleanerRunning} after delete.";
                     MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: ExecuteFileCleaner caused by {exitmsg}");
+                    
+                    if (!isCompressionSuccess || !isDeletionSuccess)
+                    {
+                        throw new Exception(errmsg);
+                    }
                     return;
                 }
 
                 // 移動
-                moveObj.Execute();
+                bool isMoveSuccess = moveObj.Execute();
+                if (!isMoveSuccess)
+                {
+                    errmsg += $"Move failed.";
+                }
                 isCleanerRunning = IsRunning();
                 if (!isCleanerRunning)
                 {
                     var exitmsg = $"isCleanerRunning = {isCleanerRunning} after move.";
                     MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: ExecuteFileCleaner caused by {exitmsg}");
+                    
+                    if (!isCompressionSuccess || !isDeletionSuccess || !isMoveSuccess)
+                    {
+                        throw new Exception(errmsg);
+                    }
                     return;
+                }
+
+                if (!isCompressionSuccess || !isDeletionSuccess || !isMoveSuccess)
+                {
+                    throw new Exception(errmsg);
                 }
             }
             finally
@@ -442,6 +476,10 @@ namespace IotedgeV2FileCleaner
                         {
                             nameDateStr = filesysinfo.Name.Substring(0, dateFmt.Length);
                         }
+                        else
+                        {
+                            nameDateStr = filesysinfo.Name;
+                        }
                     }
                     else if (info.ElapsedTimeSetting.JudgeType == Const.ElapsedJudgeType.NAME_REGEX)
                     {
@@ -451,8 +489,16 @@ namespace IotedgeV2FileCleaner
                         }
                     }
 
-                    if (!string.IsNullOrEmpty(nameDateStr) &&
-                        DateTime.TryParseExact(nameDateStr, dateFmt, ci, dts, out DateTime outTime))
+                    if (info.ElapsedTimeSetting.JudgeType == Const.ElapsedJudgeType.NAME_REGEX && nameDateStr == "" && matchObj == null)
+                    {
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"CheckTargetDt : Target does not match regex_pattern. return='{ret}'");
+                    }
+                    else if (nameDateStr == "")
+                    {
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"CheckTargetDt : nameDateStr is empty. return='{ret}'");
+                    }
+                    else if (!string.IsNullOrEmpty(nameDateStr) &&
+                             DateTime.TryParseExact(nameDateStr, dateFmt, ci, dts, out DateTime outTime))
                     {
                         string targetDtStr = ((DateTime)targetDt).ToString(dateFmt);
                         if (nameDateStr.CompareTo(targetDtStr) <= 0)
@@ -501,68 +547,36 @@ namespace IotedgeV2FileCleaner
         }
 
         /// <summary>
-        /// ファイルをコピーする(MoveHelperから呼び出す用)
+        /// ファイルを移動する
         /// </summary>
-        /// <param name="fromFileinfo">コピー元(FileInfo)</param>
-        /// <param name="toPath">コピー先パス(string)</param>
+        /// <param name="fromFileinfo">移動元(FileInfo)</param>
+        /// <param name="toPath">移動先パス(string)</param>
         /// <param name="overwrite">上書きするかどうか</param>
-        internal static void CopyFile_MoveHelper(FileInfo fromFileinfo, string toPath, bool overwrite)
+        internal static void MoveFile(FileInfo fromFileinfo, string toPath, bool overwrite)
         {
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
 
             string outputPath = Path.Combine(toPath, fromFileinfo.Name);
-            string backupPath = null;
-            bool needRestore = false;
-            bool actualOverwrite = overwrite;
             
             try
             {
-                // 上書きモードがtrueで、コピー先ファイルが存在する場合はバックアップ
-                if (actualOverwrite && File.Exists(outputPath))
+                // 移動先ファイル存在チェック
+                if (File.Exists(outputPath) && !overwrite)
                 {
-                    backupPath = outputPath + ".bak_" + DateTime.Now.ToString("yyyyMMddHHmmss");
-                    MyLogger.WriteLog(ILogger.LogLevel.DEBUG, $"Renaming existing file to: {backupPath}");
-                    File.Move(outputPath, backupPath);
-                    needRestore = true;
-                    
-                    // 上書きモードでバックアップした場合は、falseに変更（既に移動済みなので）
-                    actualOverwrite = false;
+                    var errmsg = $"File '{outputPath}' is already exists.";
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: {System.Reflection.MethodBase.GetCurrentMethod().Name} caused by {errmsg}");
+                    throw new Exception(errmsg);
                 }
-                
-                // ファイルをコピー
-                fromFileinfo.CopyTo(outputPath, actualOverwrite);
-                File.SetCreationTimeUtc(outputPath, fromFileinfo.CreationTimeUtc);
+
+                // ファイルを移動
+                fromFileinfo.MoveTo(outputPath, overwrite);
                 File.SetLastWriteTimeUtc(outputPath, fromFileinfo.LastWriteTimeUtc);
                 File.SetLastAccessTimeUtc(outputPath, fromFileinfo.LastAccessTimeUtc);
                 File.SetAttributes(outputPath, fromFileinfo.Attributes);
-                
-                // バックアップがあれば削除
-                if (backupPath != null)
-                {
-                    MyLogger.WriteLog(ILogger.LogLevel.DEBUG, $"Copy successful, removing backup file: {backupPath}");
-                    File.Delete(backupPath);
-                    needRestore = false;
-                }
             }
             catch
             {
-                // エラー発生時、バックアップからの復元が必要な場合
-                if (needRestore && backupPath != null)
-                {
-                    MyLogger.WriteLog(ILogger.LogLevel.ERROR, $"Copy failed, restoring from backup: {backupPath}");
-                    
-                    // コピー先に不完全なファイルがあれば削除
-                    if (File.Exists(outputPath))
-                    {
-                        File.Delete(outputPath);
-                    }
-                    
-                    // バックアップを元の名前に戻す
-                    File.Move(backupPath, outputPath);
-                }
-                
-                // 例外を再スロー
-                var errmsg = "Failed to copy file.";
+                var errmsg = "Failed to move file.";
                 MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: {System.Reflection.MethodBase.GetCurrentMethod().Name} caused by {errmsg}");
                 throw;
             }
@@ -619,18 +633,28 @@ namespace IotedgeV2FileCleaner
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
         }
 
-        internal static void CopyDirectory_MoveHelper(DirectoryInfo fromDirinfo, string toPath, bool overwrite)
+        /// <summary>
+        /// ディレクトリをサブディレクトリを含めて移動する
+        /// 例) fromDirinfo : /inputdir/test1
+        ///     toPath      : /outputdir
+        ///     → /outputdir/test1ディレクトリを作成し、
+        ///        /inputdir/test1配下の全てのファイル、サブディレクトリを/outputdir/test1へコピーする 
+        /// </summary>
+        /// <param name="fromDirinfo">移動元(DirectoryInfo)</param>
+        /// <param name="toPath">移動先パス(string)</param>
+        /// <param name="overwrite">上書きするかどうか</param>
+        internal static void MoveDirectory(DirectoryInfo fromDirinfo, string toPath, bool overwrite)
         {
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
 
-            // コピー先ディレクトリ存在チェック
+            // 移動先ディレクトリ存在チェック
             string outputPath = Path.Combine(toPath, fromDirinfo.Name);
             if (Directory.Exists(outputPath))
             {
                 if (!overwrite)
                 {
                     var errmsg = $"Directory '{outputPath}' is already exists.";
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CopyDirectory_MoveHelper caused by {errmsg}");
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: {System.Reflection.MethodBase.GetCurrentMethod().Name} caused by {errmsg}");
                     throw new Exception(errmsg);
                 }
             }
@@ -638,7 +662,6 @@ namespace IotedgeV2FileCleaner
             {
                 // コピー先ディレクトリが無ければ作成
                 Directory.CreateDirectory(outputPath);
-                Directory.SetCreationTimeUtc(outputPath, fromDirinfo.CreationTimeUtc);
                 Directory.SetLastWriteTimeUtc(outputPath, fromDirinfo.LastWriteTimeUtc);
                 Directory.SetLastAccessTimeUtc(outputPath, fromDirinfo.LastAccessTimeUtc);
                 new DirectoryInfo(outputPath).Attributes = fromDirinfo.Attributes;
@@ -647,12 +670,12 @@ namespace IotedgeV2FileCleaner
             // コピー元ディレクトリ内のファイルを全てコピー先へコピー
             foreach (var fileinfo in fromDirinfo.GetFiles())
             {
-                CopyFile_MoveHelper(fileinfo, outputPath, overwrite);
+                MoveFile(fileinfo, outputPath, overwrite);
             }
             // コピー元ディレクトリ内のサブディレクトリを全てコピー先へコピー
             foreach (var dirinfo in fromDirinfo.GetDirectories())
             {
-                CopyDirectory_MoveHelper(dirinfo, outputPath, overwrite);
+                MoveDirectory(dirinfo, outputPath, overwrite);
             }
 
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
@@ -735,96 +758,107 @@ namespace IotedgeV2FileCleaner
         /// <summary>
         /// 圧縮を実行
         /// </summary>
-        internal void Execute()
+        internal bool Execute()
         {
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : Start. target count is '{this.CompTargetDic.Count}'");
 
+            bool result = true;
+
             foreach (var comp_key in this.CompTargetDic.Keys)
             {
-                // スケジューラ停止または終了処理中の場合は処理を抜ける
-                bool isCleanerRunning = Cleaner.IsRunning();
-                if (!isCleanerRunning)
+                try
                 {
-                    var exitmsg = $"isCleanerRunning = {isCleanerRunning}.";
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: Execute caused by {exitmsg}");
-                    return;
-                }
-
-                string comp_file_name = comp_key + ".zip";
-                string comp_work_dir = Path.Combine(this.Info.CompressWorkPath, comp_key);
-                string comp_work_file_path = Path.Combine(this.Info.CompressWorkPath, comp_file_name);
-                string comp_out_file_path = Path.Combine(this.Info.OutputPath, comp_file_name);
-
-                // 圧縮用ワークディレクトリ内に、対象ディレクトリ、対象圧縮ファイルが存在する場合は削除しておく
-                if (Directory.Exists(comp_work_dir))
-                {
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : work directory exists. delete now. '{comp_work_dir}'");
-                    Directory.Delete(comp_work_dir, true);
-                }
-                if (File.Exists(comp_work_file_path))
-                {
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : work compress file exists. delete now. '{comp_work_file_path}'");
-                    File.Delete(comp_work_file_path);
-                }
-
-                // 出力先に既にzipファイルが存在する場合、圧縮用ワークディレクトリに解凍する
-                if (File.Exists(comp_out_file_path))
-                {
-                    MyLogger.WriteLog(ILogger.LogLevel.DEBUG, $"'{comp_file_name}' is already exists. Extract now.");
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : extract compress file. '{comp_out_file_path}' -> '{comp_work_dir}'");
-                    ZipFile.ExtractToDirectory(comp_out_file_path, comp_work_dir, true);
-                }
-
-                // ワークディレクトリを作成
-                if (!Directory.Exists(comp_work_dir))
-                {
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : create work directory. '{comp_work_dir}'");
-                    Directory.CreateDirectory(comp_work_dir);
-                }
-
-                // 対象ファイル(orディレクトリ)をワークディレクトリにコピー
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : copy target to work directory.");
-                foreach (var filesysinfo in this.CompTargetDic[comp_key])
-                {
-                    filesysinfo.Refresh();
-                    if (filesysinfo.Exists)
+                    // スケジューラ停止または終了処理中の場合は処理を抜ける
+                    bool isCleanerRunning = Cleaner.IsRunning();
+                    if (!isCleanerRunning)
                     {
-                        var relativePath = filesysinfo.FullName.Substring(new DirectoryInfo(this.Info.InputPath).FullName.Length + 1);
-                        if (this.Info.TargetType == Const.TargetType.FILE)
+                        var exitmsg = $"isCleanerRunning = {isCleanerRunning}.";
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: Execute caused by {exitmsg}");
+                        result = false;
+                        return result;
+                    }
+
+                    string comp_file_name = comp_key + ".zip";
+                    string comp_work_dir = Path.Combine(this.Info.CompressWorkPath, comp_key);
+                    string comp_work_file_path = Path.Combine(this.Info.CompressWorkPath, comp_file_name);
+                    string comp_out_file_path = Path.Combine(this.Info.OutputPath, comp_file_name);
+
+                    // 圧縮用ワークディレクトリ内に、対象ディレクトリ、対象圧縮ファイルが存在する場合は削除しておく
+                    if (Directory.Exists(comp_work_dir))
+                    {
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : work directory exists. delete now. '{comp_work_dir}'");
+                        Directory.Delete(comp_work_dir, true);
+                    }
+                    if (File.Exists(comp_work_file_path))
+                    {
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : work compress file exists. delete now. '{comp_work_file_path}'");
+                        File.Delete(comp_work_file_path);
+                    }
+
+                    // 出力先に既にzipファイルが存在する場合、圧縮用ワークディレクトリに解凍する
+                    if (File.Exists(comp_out_file_path))
+                    {
+                        MyLogger.WriteLog(ILogger.LogLevel.DEBUG, $"'{comp_file_name}' is already exists. Extract now.");
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : extract compress file. '{comp_out_file_path}' -> '{comp_work_dir}'");
+                        ZipFile.ExtractToDirectory(comp_out_file_path, comp_work_dir, true);
+                    }
+
+                    // ワークディレクトリを作成
+                    if (!Directory.Exists(comp_work_dir))
+                    {
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : create work directory. '{comp_work_dir}'");
+                        Directory.CreateDirectory(comp_work_dir);
+                    }
+
+                    // 対象ファイル(orディレクトリ)をワークディレクトリにコピー
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : copy target to work directory.");
+                    foreach (var filesysinfo in this.CompTargetDic[comp_key])
+                    {
+                        filesysinfo.Refresh();
+                        if (filesysinfo.Exists)
                         {
-                            Cleaner.CopyFile((FileInfo)filesysinfo, comp_work_dir, true);
-                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': copy file. '{relativePath}' -> '{comp_work_dir}'");
+                            var relativePath = filesysinfo.FullName.Substring(new DirectoryInfo(this.Info.InputPath).FullName.Length + 1);
+                            if (this.Info.TargetType == Const.TargetType.FILE)
+                            {
+                                Cleaner.CopyFile((FileInfo)filesysinfo, comp_work_dir, true);
+                                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': copy file. '{relativePath}' -> '{comp_work_dir}'");
+                            }
+                            else
+                            {
+                                Cleaner.CopyDirectory((DirectoryInfo)filesysinfo, comp_work_dir, true);
+                                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': copy directory. '{relativePath}' -> '{comp_work_dir}'");
+                            }
                         }
                         else
                         {
-                            Cleaner.CopyDirectory((DirectoryInfo)filesysinfo, comp_work_dir, true);
-                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': copy directory. '{relativePath}' -> '{comp_work_dir}'");
+                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : '{filesysinfo.FullName}' does not exist. copy skipped.");
                         }
                     }
-                    else
-                    {
-                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : '{filesysinfo.FullName}' does not exist. copy skipped.");
-                    }
+
+                    // ワークディレクトリを圧縮
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : compress work directory. '{comp_work_dir}' -> '{comp_work_file_path}'");
+                    ZipFile.CreateFromDirectory(comp_work_dir, comp_work_file_path);
+
+                    // 作成された圧縮ファイルを出力先ディレクトリへコピー
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : copy compress file. '{comp_work_file_path}' -> '{this.Info.OutputPath}'");
+                    Cleaner.CopyFile(new FileInfo(comp_work_file_path), this.Info.OutputPath, true);
+
+                    // ワークディレクトリを削除
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : delete work directory. '{comp_work_dir}'");
+                    Directory.Delete(comp_work_dir, true);
+                    // ワーク圧縮ファイルを削除
+                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : delete work compress file. '{comp_work_file_path}'");
+                    File.Delete(comp_work_file_path);
                 }
-
-                // ワークディレクトリを圧縮
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : compress work directory. '{comp_work_dir}' -> '{comp_work_file_path}'");
-                ZipFile.CreateFromDirectory(comp_work_dir, comp_work_file_path);
-
-                // 作成された圧縮ファイルを出力先ディレクトリへコピー
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : copy compress file. '{comp_work_file_path}' -> '{this.Info.OutputPath}'");
-                Cleaner.CopyFile(new FileInfo(comp_work_file_path), this.Info.OutputPath, true);
-
-                // ワークディレクトリを削除
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : delete work directory. '{comp_work_dir}'");
-                Directory.Delete(comp_work_dir, true);
-                // ワーク圧縮ファイルを削除
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : delete work compress file. '{comp_work_file_path}'");
-                File.Delete(comp_work_file_path);
+                catch (Exception ex)
+                {
+                    MyLogger.WriteLog(ILogger.LogLevel.ERROR, $"Error during compression process for '{comp_key}': {ex.Message}");
+                    result = false;
+                }
             }
-
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
+            return result;
         }
     }
 
@@ -859,44 +893,55 @@ namespace IotedgeV2FileCleaner
         /// <summary>
         /// 削除を実行
         /// </summary>
-        internal void Execute()
+        internal bool Execute()
         {
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : Start. target count is '{this.DelTargetList.Count}'");
 
+            bool result = true;
+
             foreach (var filesysinfo in this.DelTargetList)
             {
-                // スケジューラ停止または終了処理中の場合は処理を抜ける
-                bool isCleanerRunning = Cleaner.IsRunning();
-                if (!isCleanerRunning)
+                try
                 {
-                    var exitmsg = $"isCleanerRunning = {isCleanerRunning}.";
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: Execute caused by {exitmsg}");
-                    return;
-                }
-
-                filesysinfo.Refresh();
-                if (filesysinfo.Exists)
-                {
-                    var relativePath = filesysinfo.FullName.Substring(new DirectoryInfo(this.Info.InputPath).FullName.Length + 1);
-                    if (this.Info.TargetType == Const.TargetType.FILE)
+                    // スケジューラ停止または終了処理中の場合は処理を抜ける
+                    bool isCleanerRunning = Cleaner.IsRunning();
+                    if (!isCleanerRunning)
                     {
-                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': delete file. '{relativePath}'");
-                        filesysinfo.Delete();
+                        var exitmsg = $"isCleanerRunning = {isCleanerRunning}.";
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: Execute caused by {exitmsg}");
+                        result = false;
+                        return result;
+                    }
+
+                    filesysinfo.Refresh();
+                    if (filesysinfo.Exists)
+                    {
+                        var relativePath = filesysinfo.FullName.Substring(new DirectoryInfo(this.Info.InputPath).FullName.Length + 1);
+                        if (this.Info.TargetType == Const.TargetType.FILE)
+                        {
+                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': delete file. '{relativePath}'");
+                            filesysinfo.Delete();
+                        }
+                        else
+                        {
+                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': delete directory. '{relativePath}'");
+                            ((DirectoryInfo)filesysinfo).Delete(true);
+                        }
                     }
                     else
                     {
-                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': delete drectory. '{relativePath}'");
-                        ((DirectoryInfo)filesysinfo).Delete(true);
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : '{filesysinfo.FullName}' does not exist. delete skipped.");
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : '{filesysinfo.FullName}' does not exist. delete skipped.");
+                    MyLogger.WriteLog(ILogger.LogLevel.ERROR, $"Error while deleting '{filesysinfo.FullName}': {ex.Message}");
+                    result = false;
                 }
             }
-
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
+            return result;
         }
     }
 
@@ -931,46 +976,56 @@ namespace IotedgeV2FileCleaner
         /// <summary>
         /// 移動を実行
         /// </summary>
-        internal void Execute()
+        internal bool Execute()
         {
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : Start. target count is '{this.MoveTargetList.Count}'");
 
+            bool result = true;
+
             foreach (var filesysinfo in this.MoveTargetList)
             {
-                // スケジューラ停止または終了処理中の場合は処理を抜ける
-                bool isCleanerRunning = Cleaner.IsRunning();
-                if (!isCleanerRunning)
+                try
                 {
-                    var exitmsg = $"isCleanerRunning = {isCleanerRunning}.";
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: Execute caused by {exitmsg}");
-                    return;
-                }
-
-                filesysinfo.Refresh();
-                if (filesysinfo.Exists)
-                {
-                    var relativePath = filesysinfo.FullName.Substring(new DirectoryInfo(this.Info.InputPath).FullName.Length + 1);
-                    if (this.Info.TargetType == Const.TargetType.FILE)
+                    // スケジューラ停止または終了処理中の場合は処理を抜ける
+                    bool isCleanerRunning = Cleaner.IsRunning();
+                    if (!isCleanerRunning)
                     {
-                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': move file. '{relativePath}' -> '{this.Info.OutputPath}'");
-                        Cleaner.CopyFile_MoveHelper((FileInfo)filesysinfo, this.Info.OutputPath, this.Info.MoveOverwrite);
-                        filesysinfo.Delete();
+                        var exitmsg = $"isCleanerRunning = {isCleanerRunning}.";
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: Execute caused by {exitmsg}");
+                        result = false;
+                        return result;
+                    }
+
+                    filesysinfo.Refresh();
+                    if (filesysinfo.Exists)
+                    {
+                        var relativePath = filesysinfo.FullName.Substring(new DirectoryInfo(this.Info.InputPath).FullName.Length + 1);
+                        if (this.Info.TargetType == Const.TargetType.FILE)
+                        {
+                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': move file. '{relativePath}' -> '{this.Info.OutputPath}'");
+                            Cleaner.MoveFile((FileInfo)filesysinfo, this.Info.OutputPath, this.Info.MoveOverwrite);
+                        }
+                        else
+                        {
+                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': move directory. '{relativePath}' -> '{this.Info.OutputPath}'");
+                            Cleaner.MoveDirectory((DirectoryInfo)filesysinfo, this.Info.OutputPath, this.Info.MoveOverwrite);
+                            ((DirectoryInfo)filesysinfo).Delete(true);
+                        }
                     }
                     else
                     {
-                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"'Info{this.Info.InfoNumber}': move directory. '{relativePath}' -> '{this.Info.OutputPath}'");
-                        Cleaner.CopyDirectory_MoveHelper((DirectoryInfo)filesysinfo, this.Info.OutputPath, this.Info.MoveOverwrite);
-                        ((DirectoryInfo)filesysinfo).Delete(true);
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : '{filesysinfo.FullName}' does not exist. move skipped.");
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Execute : '{filesysinfo.FullName}' does not exist. move skipped.");
+                    MyLogger.WriteLog(ILogger.LogLevel.ERROR, $"Error while moving '{filesysinfo.FullName}': {ex.Message}");
+                    result = false;
                 }
             }
-
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: {System.Reflection.MethodBase.GetCurrentMethod().Name}");
+            return result;
         }
     }
 }
