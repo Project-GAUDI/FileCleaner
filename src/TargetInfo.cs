@@ -76,159 +76,41 @@ namespace IotedgeV2FileCleaner
         {
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Start Method: CreateInstance");
 
-            JToken token1;
             var ret = new TargetInfo(info_number);
 
             //
             // スケジュール情報
             //
-            if (jobj.TryGetValue(Const.DP_KEY_JOB_NAME, out token1))
-            {
-                ret.JobName = token1.Value<string>();
-            }
-
-            if (jobj.TryGetValue(Const.DP_KEY_TIMEZONE, out token1))
-            {
-                ret.TimeZone = token1.Value<string>();
-            }
-
-            ret.Second = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_SECOND);
-            if (string.IsNullOrEmpty(ret.Second))
-            {
-                var errmsg = $"Property '{Const.DP_KEY_SECOND}' dose not exist.";
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                throw new Exception(errmsg);
-            }
-
-            ret.Minute = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_MINUTE);
-            if (string.IsNullOrEmpty(ret.Minute))
-            {
-                var errmsg = $"Property '{Const.DP_KEY_MINUTE}' dose not exist.";
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                throw new Exception(errmsg);
-            }
-
-            ret.Hour = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_HOUR);
-            if (string.IsNullOrEmpty(ret.Hour))
-            {
-                var errmsg = $"Property '{Const.DP_KEY_HOUR}' dose not exist.";
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                throw new Exception(errmsg);
-            }
-
-            ret.Day = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_DAY);
-            if (string.IsNullOrEmpty(ret.Day))
-            {
-                var errmsg = $"Property '{Const.DP_KEY_DAY}' dose not exist.";
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                throw new Exception(errmsg);
-            }
-
-            ret.Month = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_MONTH);
-            if (string.IsNullOrEmpty(ret.Month))
-            {
-                var errmsg = $"Property '{Const.DP_KEY_MONTH}' dose not exist.";
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                throw new Exception(errmsg);
-            }
-
-            ret.Week = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_WEEK);
-            if (string.IsNullOrEmpty(ret.Week))
-            {
-                var errmsg = $"Property '{Const.DP_KEY_WEEK}' dose not exist.";
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                throw new Exception(errmsg);
-            }
+            ret.JobName = Util.GetDesiredProperty<string>(jobj, Const.DP_KEY_JOB_NAME, false, string.Empty);
+            ret.TimeZone = Util.GetDesiredProperty<string>(jobj, Const.DP_KEY_TIMEZONE, false, "UTC");
+            ret.Second = Util.GetDesiredProperty<string>(jobj, Const.DP_KEY_SECOND, true);
+            ret.Minute = Util.GetDesiredProperty<string>(jobj, Const.DP_KEY_MINUTE, true);
+            ret.Hour = Util.GetDesiredProperty<string>(jobj, Const.DP_KEY_HOUR, true);
+            ret.Day = Util.GetDesiredProperty<string>(jobj, Const.DP_KEY_DAY, true);
+            ret.Month = Util.GetDesiredProperty<string>(jobj, Const.DP_KEY_MONTH, true);
+            ret.Week = Util.GetDesiredProperty<string>(jobj, Const.DP_KEY_WEEK, true);
 
             //
             // モード・対象タイプ・オプション情報
             //
-            var modestr = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_MODE).ToUpper();
-            var modeMatch = false;
-            foreach (Const.Mode value in Enum.GetValues(typeof(Const.Mode)))
-            {
-                if (Enum.GetName(typeof(Const.Mode), value).Equals(modestr))
-                {
-                    ret.Mode = value;
-                    modeMatch = true;
-                    break;
-                }
-            }
-            if (!modeMatch)
-            {
-                var errmsg = $"Property '{Const.DP_KEY_MODE}' is not expected string.";
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                throw new Exception(errmsg);
-            }
-
-            var targetstr = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_TARGETTYPE).ToUpper();
-            var targetMatch = false;
-            foreach (Const.TargetType value in Enum.GetValues(typeof(Const.TargetType)))
-            {
-                if (Enum.GetName(typeof(Const.TargetType), value).Equals(targetstr))
-                {
-                    ret.TargetType = value;
-                    targetMatch = true;
-                    break;
-                }
-            }
-            if (!targetMatch)
-            {
-                var errmsg = $"Property '{Const.DP_KEY_TARGETTYPE}' is not expected string.";
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                throw new Exception(errmsg);
-            }
-
-            if (jobj.TryGetValue(Const.DP_KEY_SCH_OPTION, out token1))
-            {
-                var schoptstr = token1.Value<string>();
-                var schoptMatch = false;
-                foreach (SearchOption value in Enum.GetValues(typeof(SearchOption)))
-                {
-                    if (Enum.GetName(typeof(SearchOption), value).Equals(schoptstr))
-                    {
-                        ret.SearchOption = value;
-                        schoptMatch = true;
-                        break;
-                    }
-                }
-                if (!schoptMatch)
-                {
-                    var errmsg = $"Property '{Const.DP_KEY_SCH_OPTION}' is not expected string.";
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                    throw new Exception(errmsg);
-                }
-            }
-
+            ret.Mode = Util.GetDesiredProperty<Const.Mode>(jobj, Const.DP_KEY_MODE, true);
+            ret.TargetType = Util.GetDesiredProperty<Const.TargetType>(jobj, Const.DP_KEY_TARGETTYPE, true);
+            ret.SearchOption = Util.GetDesiredProperty<SearchOption>(jobj, Const.DP_KEY_SCH_OPTION, false, SearchOption.TopDirectoryOnly);
             if (ret.Mode == Const.Mode.MOVE)
             {
-                if (jobj.TryGetValue(Const.DP_KEY_MOVE_OPTION, out token1))
-                {
-                    ret.MoveOverwrite = token1.Value<bool>();
-                }
+                ret.MoveOverwrite = Util.GetDesiredProperty<bool>(jobj, Const.DP_KEY_MOVE_OPTION, false, true);
             }
 
             //
             // パス情報
             //
-            ret.InputPath = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_INPUT_PATH);
-            if (string.IsNullOrEmpty(ret.InputPath))
-            {
-                var errmsg = $"Property '{Const.DP_KEY_INPUT_PATH}' dose not exist.";
-                MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                throw new Exception(errmsg);
-            }
+            ret.InputPath = Util.GetDesiredProperty<string>(jobj, Const.DP_KEY_INPUT_PATH, true);
 
             if (ret.Mode == Const.Mode.COMPRESS || ret.Mode == Const.Mode.COMPRESS_AND_DELETE || ret.Mode == Const.Mode.MOVE)
             {
-                ret.OutputPath = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_OUTPUT_PATH);
-                if (string.IsNullOrEmpty(ret.OutputPath))
-                {
-                    var errmsg = $"Property '{Const.DP_KEY_OUTPUT_PATH}' dose not exist.";
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                    throw new Exception(errmsg);
-                }
-                if (ret.Mode == Const.Mode.MOVE && ret.OutputPath.Equals(ret.InputPath))
+                ret.OutputPath = Util.GetDesiredProperty<string>(jobj, Const.DP_KEY_OUTPUT_PATH, true);
+
+                if (ret.Mode == Const.Mode.MOVE && string.Equals(ret.OutputPath, ret.InputPath, StringComparison.OrdinalIgnoreCase))
                 {
                     var errmsg = $"Property '{Const.DP_KEY_INPUT_PATH}' and '{Const.DP_KEY_OUTPUT_PATH}' are same value.";
                     MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
@@ -238,20 +120,15 @@ namespace IotedgeV2FileCleaner
 
             if (ret.Mode == Const.Mode.COMPRESS || ret.Mode == Const.Mode.COMPRESS_AND_DELETE)
             {
-                ret.CompressWorkPath = Util.GetRequiredValue<string>(jobj, Const.DP_KEY_COMP_WORK_PATH);
-                if (string.IsNullOrEmpty(ret.CompressWorkPath))
-                {
-                    var errmsg = $"Property '{Const.DP_KEY_COMP_WORK_PATH}' dose not exist.";
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                    throw new Exception(errmsg);
-                }
-                if (ret.CompressWorkPath.Equals(ret.InputPath))
+                ret.CompressWorkPath = Util.GetDesiredProperty<string>(jobj, Const.DP_KEY_COMP_WORK_PATH, true);
+                
+                if (string.Equals(ret.CompressWorkPath, ret.InputPath, StringComparison.OrdinalIgnoreCase))
                 {
                     var errmsg = $"Property '{Const.DP_KEY_INPUT_PATH}' and '{Const.DP_KEY_COMP_WORK_PATH}' are same value.";
                     MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
                     throw new Exception(errmsg);
                 }
-                if (ret.CompressWorkPath.Equals(ret.OutputPath))
+                if (string.Equals(ret.CompressWorkPath, ret.OutputPath, StringComparison.OrdinalIgnoreCase))
                 {
                     var errmsg = $"Property '{Const.DP_KEY_OUTPUT_PATH}' and '{Const.DP_KEY_COMP_WORK_PATH}' are same value.";
                     MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
@@ -262,71 +139,27 @@ namespace IotedgeV2FileCleaner
             //
             // 抽出パターン情報
             //
-            if (jobj.TryGetValue(Const.DP_KEY_REGEX_PATTERN, out token1))
-            {
-                ret.RegexPattern = token1.Value<string>();
-            }
+            ret.RegexPattern = Util.GetDesiredProperty<string>(jobj, Const.DP_KEY_REGEX_PATTERN, false, string.Empty);
 
-            if (jobj.TryGetValue(Const.DP_KEY_ELAPSED_SETTING, out token1))
+            JObject elapsedObj = Util.GetDesiredProperty<JObject>(jobj, Const.DP_KEY_ELAPSED_SETTING, false, null);
+
+            if (elapsedObj != null)
             {
-                JObject elapsedObj = (JObject)token1;
                 ret.ElapsedTimeSetting = new ElapsedTimeInfo();
-
-                var judgestr = Util.GetRequiredValue<string>(elapsedObj, Const.DP_KEY_ELAP_JUDGE_TYPE).ToUpper();
-                var judgeMatch = false;
-                foreach (Const.ElapsedJudgeType value in Enum.GetValues(typeof(Const.ElapsedJudgeType)))
-                {
-                    if (Enum.GetName(typeof(Const.ElapsedJudgeType), value).Equals(judgestr))
-                    {
-                        ret.ElapsedTimeSetting.JudgeType = value;
-                        judgeMatch = true;
-                        break;
-                    }
-                }
-                if (!judgeMatch)
-                {
-                    var errmsg = $"Property '{Const.DP_KEY_ELAP_JUDGE_TYPE}' is not expected string.";
-                    MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                    throw new Exception(errmsg);
-                }
-
-                if (elapsedObj.TryGetValue(Const.DP_KEY_ELAP_GRP_NAME, out token1))
-                {
-                    ret.ElapsedTimeSetting.GroupName = token1.Value<string>();
-                }
-
-                if (elapsedObj.TryGetValue(Const.DP_KEY_ELAP_DATE_FORMAT, out token1))
-                {
-                    ret.ElapsedTimeSetting.DateFormat = token1.Value<string>();
-                }
+                ret.ElapsedTimeSetting.JudgeType = Util.GetDesiredProperty<Const.ElapsedJudgeType>(elapsedObj, Const.DP_KEY_ELAP_JUDGE_TYPE, true);
+                ret.ElapsedTimeSetting.GroupName = Util.GetDesiredProperty<string>(elapsedObj, Const.DP_KEY_ELAP_GRP_NAME, false, string.Empty);
+                ret.ElapsedTimeSetting.DateFormat = Util.GetDesiredProperty<string>(elapsedObj, Const.DP_KEY_ELAP_DATE_FORMAT, false);
                 if (string.IsNullOrEmpty(ret.ElapsedTimeSetting.DateFormat))
                 {
-                    if (ret.ElapsedTimeSetting.JudgeType == Const.ElapsedJudgeType.NAME_PREFIX
-                        || ret.ElapsedTimeSetting.JudgeType == Const.ElapsedJudgeType.NAME_REGEX)
+                    if (ret.ElapsedTimeSetting.JudgeType == Const.ElapsedJudgeType.NAME_PREFIX || ret.ElapsedTimeSetting.JudgeType == Const.ElapsedJudgeType.NAME_REGEX)
                     {
                         ret.ElapsedTimeSetting.DateFormat = Const.DEFAULT_PREFIX_DATE_FORMAT;
                     }
                 }
-
-                if (elapsedObj.TryGetValue(Const.DP_KEY_ELAP_DAY, out token1))
-                {
-                    ret.ElapsedTimeSetting.Day = token1.Value<int>();
-                }
-
-                if (elapsedObj.TryGetValue(Const.DP_KEY_ELAP_HOUR, out token1))
-                {
-                    ret.ElapsedTimeSetting.Hour = token1.Value<int>();
-                }
-
-                if (elapsedObj.TryGetValue(Const.DP_KEY_ELAP_MINUTE, out token1))
-                {
-                    ret.ElapsedTimeSetting.Minute = token1.Value<int>();
-                }
-
-                if (elapsedObj.TryGetValue(Const.DP_KEY_ELAP_SECOND, out token1))
-                {
-                    ret.ElapsedTimeSetting.Second = token1.Value<int>();
-                }
+                ret.ElapsedTimeSetting.Day = Util.GetDesiredProperty<int>(elapsedObj, Const.DP_KEY_ELAP_DAY, false, 0, condition: x => x >= 0);
+                ret.ElapsedTimeSetting.Hour = Util.GetDesiredProperty<int>(elapsedObj, Const.DP_KEY_ELAP_HOUR, false, 0, condition: x => x >= 0);
+                ret.ElapsedTimeSetting.Minute = Util.GetDesiredProperty<int>(elapsedObj, Const.DP_KEY_ELAP_MINUTE, false, 0, condition: x => x >= 0);
+                ret.ElapsedTimeSetting.Second = Util.GetDesiredProperty<int>(elapsedObj, Const.DP_KEY_ELAP_SECOND, false, 0, condition: x => x >= 0);
             }
 
             //
@@ -336,17 +169,11 @@ namespace IotedgeV2FileCleaner
             {
                 ret.CompressFilenameInfo = new CompressFileInfo();
 
-                if (jobj.TryGetValue(Const.DP_KEY_COMP_FILE, out token1))
-                {
-                    var compObj = (JObject)token1;
+                JObject compObj = Util.GetDesiredProperty<JObject>(jobj, Const.DP_KEY_COMP_FILE, false, null);
 
-                    ret.CompressFilenameInfo.FilenameBase = Util.GetRequiredValue<string>(compObj, Const.DP_KEY_COMP_FILENM_BASE);
-                    if (string.IsNullOrEmpty(ret.CompressFilenameInfo.FilenameBase))
-                    {
-                        var errmsg = $"Property '{Const.DP_KEY_COMP_FILENM_BASE}' dose not exist.";
-                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                        throw new Exception(errmsg);
-                    }
+                if (compObj != null)
+                {
+                    ret.CompressFilenameInfo.FilenameBase = Util.GetDesiredProperty<string>(compObj, Const.DP_KEY_COMP_FILENM_BASE, true);
 
                     for (int i = 1; compObj.TryGetValue(Const.DP_KEY_COMP_FILENM_REPLACE_PARAM + i.ToString("D"), out JToken token); i++)
                     {
@@ -355,39 +182,9 @@ namespace IotedgeV2FileCleaner
                         var param = new CompressFilenameReplaceParam();
                         ret.CompressFilenameInfo.ReplaceParamList.Add(param);
 
-                        param.BaseName = Util.GetRequiredValue<string>(paramObj, Const.DP_KEY_COMP_FILENM_REPLACE_BASE_NAME);
-                        if (string.IsNullOrEmpty(param.BaseName))
-                        {
-                            var errmsg = $"Property '{Const.DP_KEY_COMP_FILENM_REPLACE_BASE_NAME}' dose not exist.";
-                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                            throw new Exception(errmsg);
-                        }
-
-                        var replacetypestr = Util.GetRequiredValue<string>(paramObj, Const.DP_KEY_COMP_FILENM_REPLACE_TYPE).ToUpper();
-                        var replacetypeMatch = false;
-                        foreach (Const.ReplaceType value in Enum.GetValues(typeof(Const.ReplaceType)))
-                        {
-                            if (Enum.GetName(typeof(Const.ReplaceType), value).Equals(replacetypestr))
-                            {
-                                param.ReplaceType = value;
-                                replacetypeMatch = true;
-                                break;
-                            }
-                        }
-                        if (!replacetypeMatch)
-                        {
-                            var errmsg = $"Property '{Const.DP_KEY_COMP_FILENM_REPLACE_TYPE}' is not expected string.";
-                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                            throw new Exception(errmsg);
-                        }
-
-                        param.ReplaceValue = Util.GetRequiredValue<string>(paramObj, Const.DP_KEY_COMP_FILENM_REPLACE_VALUE);
-                        if (string.IsNullOrEmpty(param.ReplaceValue))
-                        {
-                            var errmsg = $"Property '{Const.DP_KEY_COMP_FILENM_REPLACE_VALUE}' dose not exist.";
-                            MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
-                            throw new Exception(errmsg);
-                        }
+                        param.BaseName = Util.GetDesiredProperty<string>(paramObj, Const.DP_KEY_COMP_FILENM_REPLACE_BASE_NAME, true);
+                        param.ReplaceType = Util.GetDesiredProperty<Const.ReplaceType>(paramObj, Const.DP_KEY_COMP_FILENM_REPLACE_TYPE, true);
+                        param.ReplaceValue = Util.GetDesiredProperty<string>(paramObj, Const.DP_KEY_COMP_FILENM_REPLACE_VALUE, true);
                     }
                 }
             }
@@ -419,10 +216,80 @@ namespace IotedgeV2FileCleaner
                     throw new Exception(errmsg);
                 }
             }
+            // パス情報の包含関係チェック
+            if (ret.TargetType == Const.TargetType.DIRECTORY)
+            {
+                if (!string.IsNullOrEmpty(ret.OutputPath))
+                {
+                    if (CheckDirectoriesRelated(ret.InputPath, ret.OutputPath))
+                    {
+                        var errmsg = $"input_path [{ret.InputPath}] and output_path [{ret.OutputPath}] are related.";
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                        throw new Exception(errmsg);
+                    }
+                }
+            }
+            if (ret.TargetType == Const.TargetType.FILE && ret.SearchOption == SearchOption.AllDirectories)
+            {
+                if (!string.IsNullOrEmpty(ret.OutputPath))
+                {
+                    if (CheckDirectoriesRelated(ret.InputPath, ret.OutputPath))
+                    {
+                        var errmsg = $"input_path [{ret.InputPath}] and output_path [{ret.OutputPath}] are related.";
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                        throw new Exception(errmsg);
+                    }
+                }
+            }
+            if (ret.Mode == Const.Mode.COMPRESS || ret.Mode == Const.Mode.COMPRESS_AND_DELETE)
+            {
+                if (!string.IsNullOrEmpty(ret.CompressWorkPath))
+                {
+                    if (CheckDirectoriesRelated(ret.InputPath, ret.CompressWorkPath))
+                    {
+                        var errmsg = $"input_path [{ret.InputPath}] and comp_workpath [{ret.CompressWorkPath}] are related.";
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                        throw new Exception(errmsg);
+                    }
+                    else if (CheckDirectoriesRelated(ret.OutputPath, ret.CompressWorkPath))
+                    {
+                        var errmsg = $"output_path [{ret.OutputPath}] and comp_workpath [{ret.CompressWorkPath}] are related.";
+                        MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"Exit Method: CreateInstance caused by {errmsg}");
+                        throw new Exception(errmsg);
+                    }
+                }
+            }
 
             MyLogger.WriteLog(ILogger.LogLevel.TRACE, $"End Method: CreateInstance");
 
             return ret;
+        }
+
+        /// <summary>
+        /// 2つのディレクトリの親子関係をチェック。(末尾に"/"をつけて比較)
+        /// </summary>
+        /// <param name="dir1"></param>
+        /// <param name="dir2"></param>
+        /// <returns></returns>
+        public static bool CheckDirectoriesRelated(string dir1, string dir2)
+        {
+            static string NormalizeDirectoryPath(string path)
+            {
+                string fullPath = Path.GetFullPath(path);
+                return Path.EndsInDirectorySeparator(fullPath)
+                    ? fullPath
+                    : fullPath + Path.DirectorySeparatorChar;
+            }
+
+            string absoluteDir1 = NormalizeDirectoryPath(dir1);
+            string absoluteDir2 = NormalizeDirectoryPath(dir2);
+
+            static bool IsSubdirectory(string parent, string child)
+            {
+                return child.StartsWith(parent, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return IsSubdirectory(absoluteDir1, absoluteDir2) || IsSubdirectory(absoluteDir2, absoluteDir1);
         }
 
         /// <summary>

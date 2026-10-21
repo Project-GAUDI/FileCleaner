@@ -32,7 +32,16 @@ FileCleanerは、フォルダ/ファイルを監視し、移動/削除/圧縮を
 
 ## 機能
 
-* フォルダ/ファイルを監視し、移動/削除/圧縮を起動時間、定間隔で実行する
+指定した期間経過したファイル／ディレクトリを、削除／圧縮／圧縮して削除／移動する。  
+
+* パターンⅠ：処理対象の検索ディレクトリを指定して、ファイルまたはディレクトリの削除を行う。  
+* パターンⅡ：処理対象の検索ディレクトリおよび圧縮ファイルの保存先ディレクトリを指定して、ファイルまたはディレクトリの圧縮を行う。  
+* パターンⅢ：処理対象の検索ディレクトリおよび圧縮ファイルの保存先ディレクトリを指定して、ファイルまたはディレクトリの圧縮を行い、元ファイルを削除する。  
+* パターンⅣ：処理対象の検索ディレクトリおよび移動先ディレクトリを指定して、ファイルまたはディレクトリの移動を行う。  
+
+各処理は、実行する日時や間隔を指定することができる。  
+オプションで、ファイル検索方法や上書き制御を指定することができる。  
+また、処理対象の絞込みを行ったり、圧縮後のファイル名を指定したりすることができる。  
 
 ![schematic diagram](./docs/img/schematic_diagram.drawio.png)
 
@@ -97,9 +106,9 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 ## 動作保証環境
 
-| Module Version | IoTEdge         | edgeAgent       | edgeHub         | amd64 verified on | arm64v8 verified on | arm32v7 verified on |
-| -------------- | --------------- | --------------- | --------------- | ----------------- | ------------------- | ------------------- |
-| 6.0.4          | 1.5.0<br>1.5.16 | 1.5.6<br>1.5.19 | 1.5.6<br>1.5.19 | ubuntu22.04       | －                  | －                  |
+| Module Version | IoTEdge | edgeAgent | edgeHub | amd64 verified on | arm64v8 verified on | arm32v7 verified on |
+| -------------- | ------- | --------- | ------- | ----------------- | ------------------- | ------------------- |
+| 7.0.1          | 1.6.4   | 1.6.4     | 1.6.4   | ubuntu24.04       | －                  | －                  |
 
 ## Deployment 設定値
 
@@ -107,49 +116,61 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 #### 環境変数の値
 
-| Key                       | Required | Default | Recommend | Description                                                     |
-| ------------------------- | -------- | ------- | --------- | ---------------------------------------------------------------- |
-| TZ                        |          | UTC     | Asia/Tokyo | コンテナのタイムゾーン。 ホスト環境のタイムゾーンと合わせることを推奨。                                   |
-| TransportProtocol         |          | Amqp    |           | ModuleClient の接続プロトコル。<br>["Amqp", "Mqtt"] |
-| LogLevel                  |          | info    |           | 出力ログレベル。<br>["trace", "debug", "info", "warn", "error"] |
+| Key               | Type   | Required | Conditions                                  | Default | Description                     |
+| ----------------- | ------ | -------- | ------------------------------------------- | ------- | ------------------------------- |
+| TransportProtocol | string |          | ["Amqp", "Mqtt"]                            | Amqp    | ModuleClient の接続プロトコル。 |
+| LogLevel          | string |          | ["trace", "debug", "info", "warn", "error"] | info    | 出力ログレベル。                |
 
 ### Desired Properties
 
 #### Desired Properties の値
 
-| JSON Key                           | Type    | Required | Default          | Recommend | Description                                                                |
-| ---------------------------------- | ------- | -------- | ---------------- | --------- | ------------------------------------------------------------------------   |
-| info[x]                            | object  | 〇       |                  |           | [x]は連番の数字。                                                                                                                                                                                                                            |
-| &nbsp; job_name                    | string  |          | null             |           | jobのID(ログに出力されるのみ)。                                                                                                                                                                                                              |
-| &nbsp; timezone                    | string  |          | "UTC"            | "Asia/Tokyo" | 起動スケジュールのタイムゾーン設定。ホスト環境のタイムゾーンと合わせることを推奨。                                                                                                   |
-| &nbsp; second                      | string  | 〇       |                  |           | 秒(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; minute                      | string  | 〇       |                  |           | 分(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; hour                        | string  | 〇       |                  |           | 時(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; day                         | string  | 〇       |                  |           | 日(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; month                       | string  | 〇       |                  |           | 月(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; week                        | string  | 〇       |                  |           | 週(cron式)。                                                                                                                                                                                                                                 |
-| &nbsp; mode                        | string  | 〇       |                  |           | 実行モード (以下のいずれかを指定)。<br>①"delete"：削除<br>②"compress"：圧縮(zipのみ)。元ファイルは残る。<br>③"compress_and_delete"：圧縮して削除。圧縮後、元ファイルを削除する。<br>④"move"：移動                                                                                                |
-| &nbsp; target_type                 | string  | 〇       |                  |           | ①"file"：ファイルを対象とする<br>②"directory" ：ディレクトリを対象とする                                                                                                                                                                    |
-| &nbsp; search_option               | string  |          | TopDirectoryOnly |           | 検索時のオプション(以下のいずれかを指定)。<br>①"TopDirectoryOnly"：入力ディレクトリ直下のみ検索<br>②"AllDirectories"：サブディレクトリも含めて検索<br>\* target_type="file"時のみ有効。target_type="directory"の場合は、検索対象ディレクトリ直下の条件を満たすディレクトリ配下全てが処理対象となる。
-| &nbsp; move_overwrite              | boolean |          | true             |           | 移動時、移動先に同名ファイル(orディレクトリ)が存在する場合に上書きするかどうか。<br>\*falseを指定していた場合は、移動先に同名ファイルが存在すると例外が発生する。                                                                             |
-| &nbsp; input_path                  | string  | 〇       | 　　　　          |           | 対象(ファイルorディレクトリ)を検索するディレクトリ。                                                                                                                                                                                         |
-| &nbsp; output_path                 | string  | △       | null             |           | 移動先 or 圧縮ファイル保存先ディレクトリ。<br>\*modeが「移動」「圧縮」または「圧縮して削除」の場合は必須。<br>\*modeが「移動」の場合、input_pathと同じ場合はエラー。<br>\*modeが「圧縮」または「圧縮して削除」の場合、input_pathと同じでもOK。                                           |
-| &nbsp; comp_workpath               | string  | △       | null             |           | 圧縮時に使用するワークディレクトリ。<br>\*modeが「圧縮」または「圧縮して削除」の場合は必須。<br>\*input_path or output_pathと同じ場合はエラー。                                                                                                                        |
-| &nbsp; regex_pattern               | string  |          | null             |           | 対象とするファイル名orディレクトリ名のパターン(正規表現)。                                                                                                                                                                                   |
-| &nbsp; elapsed_time                | string  |          | null             |           | 対象とする経過日数を指定。                                                                                                                                                                                                                   |
-| &nbsp; &nbsp; judge_type           | object  |          | null             |           | 判定条件 (以下のいずれかを指定) 。<br>①"update_time"：ファイルの更新日時で判定<br>②"name_prefix"：ファイル名先頭文字(yyyyMMdd等)で判定<br>③"name_regex"：ファイル名パターン正規表現のグループ名から取得した値で判定                          |
-| &nbsp; &nbsp; group_name           | string  |          | null             |           | typeが"name_regex"の場合に指定。                                                                                                                                                                                                             |
-| &nbsp; &nbsp; date_format          | string  |          | "yyyyMMdd"       |           | typeが"name_prefix"、"name_regex"の場合に指定。                                                                                                                                                                                              |
-| &nbsp; &nbsp; day                  | number  |          | 0                |           | 経過時間(日)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
-| &nbsp; &nbsp; hour                 | number  |          | 0                |           | 経過時間(時)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
-| &nbsp; &nbsp; minute               | number  |          | 0                |           | 経過時間(分)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
-| &nbsp; &nbsp; second               | number  |          | 0                |           | 経過時間(秒)<br>\*day or hour or minute or second のどれかまたは複数を指定可。                                                                                                                                                               |
-| &nbsp; compress_file               | object  |          | null             |           | 圧縮先ファイル情報。 <br>\*modeが「圧縮」または「圧縮して削除」の場合に設定可能。<br>\*省略した場合、圧縮元のファイル名 or ディレクトリ名。                                                                                                                                |
-| &nbsp; &nbsp; filename             | string  |          | null             |           | 圧縮ファイルのファイル名。<br>\*拡張子は含めない。<br>\*拡張子は固定で".zip"を付与。                                                                                                                                                             |
-| &nbsp; &nbsp; replace_param[y]     | object  |          | null             |           | [y]は連番の数字。<br>ファイル名の置換設定。                                                                                                                                                                                                    |
-| &nbsp; &nbsp; &nbsp; base_name     | string  |          | null             |           | 置換元文字列。                                                                                                                                                                                                                               |
-| &nbsp; &nbsp; &nbsp; replace_type  | string  |          | null             |           | 置換先文字列のタイプを指定 (以下のいずれかを指定)。<br>①"group_name"：ファイル名パターン正規表現のグループ名から取得した値<br>②"file_date"：圧縮するファイルの更新日時<br>③"now_date"：現在日時                                              |
-| &nbsp; &nbsp; &nbsp; replace_value | string  |          | null             |           | 置換先文字列の取得に使用。<br>①replace_typeが "group_name"…正規表現のグループ名を指定<br>②replace_typeが "file_date"…ToStringする際のformatを指定 ("yyyyMMdd" 等)<br>③replace_typeが "now_date"…ToStringする際のformatを指定 ("yyyyMMdd" 等) |
+| JSON Key                           | Type    | Required | Conditions                                                                                                                                                                                                                                      | Default            | Description                                                                                                                                                                                                                                  |
+| ---------------------------------- | ------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| info[x]                            | object  | 〇       | [x]は連番の数字                                                                                                                                                                                                                                 |                    | 実行する処理の情報。                                                                                                                                                                                                                         |
+| &emsp; job_name                    | string  |          |                                                                                                                                                                                                                                                 | null               | 処理名。ログ出力時に使用。                                                                                                                                                                                                                   |
+| &emsp; timezone                    | string  |          |                                                                                                                                                                                                                                                 | "UTC"              | 起動スケジュール：タイムゾーン。<br>ホスト環境のタイムゾーンと合わせることを推奨。<br>推奨値は"Asia/Tokyo"。                                                                                                                                 |
+| &emsp; second                      | string  | 〇       |                                                                                                                                                                                                                                                 |                    | 起動スケジュール：秒(cron式)。                                                                                                                                                                                                               |
+| &emsp; minute                      | string  | 〇       |                                                                                                                                                                                                                                                 |                    | 起動スケジュール：分(cron式)。                                                                                                                                                                                                               |
+| &emsp; hour                        | string  | 〇       |                                                                                                                                                                                                                                                 |                    | 起動スケジュール：時(cron式)。                                                                                                                                                                                                               |
+| &emsp; day                         | string  | 〇       |                                                                                                                                                                                                                                                 |                    | 起動スケジュール：日(cron式)。                                                                                                                                                                                                               |
+| &emsp; month                       | string  | 〇       |                                                                                                                                                                                                                                                 |                    | 起動スケジュール：月(cron式)。                                                                                                                                                                                                               |
+| &emsp; week                        | string  | 〇       |                                                                                                                                                                                                                                                 |                    | 起動スケジュール：週(cron式)。                                                                                                                                                                                                               |
+| &emsp; mode                        | string  | 〇       | ["delete", "compress", "compress_and_delete", "move"]                                                                                                                                                                                           |                    | 実行モード。<br>delete：削除<br>compress：圧縮(zipのみ)、元ファイルは残る<br>compress_and_delete：圧縮(zipのみ)して元ファイルを削除<br>move：移動                                                                                            |
+| &emsp; target_type                 | string  | 〇       | ["file", "directory"]                                                                                                                                                                                                                           |                    | 処理対象の種類。<br>file：ファイル<br>directory：ディレクトリ                                                                                                                                                                                |
+| &emsp; search_option               | string  |          | target_type=file時のみ有効<br>["TopDirectoryOnly", "AllDirectories"]                                                                                                                                                                            | "TopDirectoryOnly" | ファイル検索オプション。<br>TopDirectoryOnly：処理対象の検索ディレクトリ直下のみ検索<br>AllDirectories：サブディレクトリも含めて検索<br>target_type=directoryの場合、<br>処理対象の検索ディレクトリ直下のディレクトリのみ検索。              |
+| &emsp; move_overwrite              | boolean |          | mode=move時のみ有効                                                                                                                                                                                                                             | true               | 移動時、移動先に同名ファイル(ディレクトリ)が存在する場合、<br>上書きするかどうか。<br>true：上書きする<br>false：上書きしない                                                                                                                |
+| &emsp; input_path                  | string  | 〇       | input_path/output_path/comp_workpathの<br>包含関係の制約 ※1                                                                                                                                                                                     |                    | 処理対象の検索ディレクトリ。                                                                                                                                                                                                                 |
+| &emsp; output_path                 | string  | △        | mode=compress/compress_and_delete/move時必須<br>mode=compress/compress_and_deleteの場合、<br>input_pathと同じでもOK<br>mode=moveの場合、input_pathと大文字小文字区別せず同じはNG<br>input_path/output_path/comp_workpathの<br>包含関係の制約 ※1 |                    | mode=compress/compress_and_deleteの場合、<br>圧縮ファイルの保存先ディレクトリ。<br>mode=moveの場合、移動先ディレクトリ。                                                                                                                     |
+| &emsp; comp_workpath               | string  | △        | mode=compress/compress_and_delete時必須<br>input_path/output_pathと大文字小文字区別せず同じはNG<br>input_path/output_path/comp_workpathの<br>包含関係の制約 ※1                                                                                  |                    | 圧縮時に使用するワークディレクトリ。                                                                                                                                                                                                         |
+| &emsp; regex_pattern               | string  |          |                                                                                                                                                                                                                                                 | null               | 処理対象とするファイル名(ディレクトリ名)の正規表現パターン。<br>省略した場合、全てのファイル名(ディレクトリ名)が処理対象となる。                                                                                                             |
+| &emsp; elapsed_time                | object  |          |                                                                                                                                                                                                                                                 | null               | 処理対象とする経過日数。<br>省略した場合、経過日数にかかわらず、<br>全てのファイル(ディレクトリ)が処理対象となる。                                                                                                                           |
+| &emsp; &emsp; judge_type           | string  | △        | elapsed_time設定時必須<br>["update_time", "name_prefix", "name_regex"]                                                                                                                                                                          |                    | 経過日数の判定の種類。<br>update_time：ファイル(ディレクトリ)の更新日時で判定<br>name_prefix：ファイル名(ディレクトリ名)の<br>先頭から取得した文字列で判定<br>name_regex：ファイル名(ディレクトリ名)の<br>group_nameから取得した文字列で判定 |
+| &emsp; &emsp; group_name           | string  |          | judge_type=name_regex時のみ有効                                                                                                                                                                                                                 | null               | regex_patternの正規表現パターンで指定された、<br>日付部分を示す文字列のグループ名。                                                                                                                                                          |
+| &emsp; &emsp; date_format          | string  |          | judge_type=name_prefix/name_regex時のみ有効                                                                                                                                                                                                     | "yyyyMMdd"         | 経過日数の判定のために取得した文字列の日時書式指定文字列。※2<br>judge_type="name_prefix"の利用例は、ユースケース②を参照。<br>judge_type="name_regex"の利用例は、ユースケース③を参照。                                                        |
+| &emsp; &emsp; day                  | number  |          | day/hour/minute/secondのうち1つ以上指定<br>0以上の整数                                                                                                                                                                                          | 0                  | 経過日数：日。<br>現在時刻を基準に、day日以前が処理対象となる。                                                                                                                                                                              |
+| &emsp; &emsp; hour                 | number  |          | day/hour/minute/secondのうち1つ以上指定<br>0以上の整数                                                                                                                                                                                          | 0                  | 経過日数：時。<br>現在時刻を基準に、hour時間以前が処理対象となる。                                                                                                                                                                           |
+| &emsp; &emsp; minute               | number  |          | day/hour/minute/secondのうち1つ以上指定<br>0以上の整数                                                                                                                                                                                          | 0                  | 経過日数：分。<br>現在時刻を基準に、minute分以前が処理対象となる。                                                                                                                                                                           |
+| &emsp; &emsp; second               | number  |          | day/hour/minute/secondのうち1つ以上指定<br>0以上の整数                                                                                                                                                                                          | 0                  | 経過日数：秒。<br>現在時刻を基準に、second秒以前が処理対象となる。                                                                                                                                                                           |
+| &emsp; compress_file               | object  |          | mode=compress/compress_and_delete時のみ有効                                                                                                                                                                                                     | null               | 圧縮ファイル名の情報。 <br>省略した場合、圧縮元のファイル名(ディレクトリ名)となる。                                                                                                                                                          |
+| &emsp; &emsp; filename             | string  | △        | compress_file設定時必須                                                                                                                                                                                                                         |                    | 圧縮ファイルのファイル名。拡張子は含めない。<br>拡張子は固定で".zip"が付与される。                                                                                                                                                           |
+| &emsp; &emsp; replace_param[y]     | object  |          | [y]は連番の数字                                                                                                                                                                                                                                 | null               | 圧縮ファイル名の置換設定。                                                                                                                                                                                                                   |
+| &emsp; &emsp; &emsp; base_name     | string  | △        | replace_param設定時必須                                                                                                                                                                                                                         |                    | 置換前文字列。                                                                                                                                                                                                                               |
+| &emsp; &emsp; &emsp; replace_type  | string  | △        | replace_param設定時必須<br> ["group_name", "file_date", "now_date"]                                                                                                                                                                             |                    | 置換後文字列の種類。<br>group_name：regex_patternの正規表現で指定されたグループ名<br>から取得した値に置換<br>file_date：圧縮するファイル(ディレクトリ)の更新日時に置換<br>now_date：現在日時に置換                                           |
+| &emsp; &emsp; &emsp; replace_value | string  | △        | replace_param設定時必須<br>replace_type=group_nameの場合、<br>正規表現のグループ名を指定<br>replace_type=file_date/now_dateの場合、<br>ToStringする際のフォーマットを指定 ("yyyyMMdd"等)                                                        |                    | 置換後文字列の取得に使用。                                                                                                                                                                                                                   |
+
+※1 input_path/output_path/comp_workpathの包含関係の制約  
+
+* target_type=directoryの場合、input_path/output_pathに包含関係があるとNG  
+
+* target_type=fileかつsearch_option=AllDirectoriesの場合、input_path/output_pathに包含関係があるとNG  
+
+* mode=compressまたはcompress_and_deleteの場合、input_path/comp_workpathまたはoutput_path/comp_workpathに包含関係があるとNG  
+
+※2 日時書式指定文字列  
+
+* 記法  
+  [https://learn.microsoft.com/ja-jp/dotnet/standard/base-types/standard-date-and-time-format-strings (外部リンク)](https://learn.microsoft.com/ja-jp/dotnet/standard/base-types/standard-date-and-time-format-strings)
 
 #### Desired Properties の記入例
 
@@ -180,27 +201,49 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 #### Create Option の値
 
-| JSON Key     | Type   | Required | Description              |
-| ------------ | ------ | -------- | ------------------------ |
-| HostConfig   | object | ○        |                          |
-| &nbsp; Binds | object | ○        | ディレクトリバインド設定 |
+| JSON Key     | Type   | Required | Description                                                  |
+| ------------ | ------ | -------- | ------------------------------------------------------------ |
+| HostConfig   | object | ○        |                                                              |
+| &emsp; Binds | array  | ○        | ホスト上のディレクトリとコンテナーのディレクトリのマッピング |
 
 #### Create Option の記入例
+
+記入の仕方は、"ホスト側のディレクトリパス:コンテナー側のディレクトリパス"の形式。  
+設定するディレクトリパスは、3種類。（実行モードによっては、設定不要なディレクトリパスもある）  
 
 ```json
 {
   "HostConfig": {
-    "Binds": ["/var/ftp/val20/Backup:/iotedge/val20/Backup"]
+    "Binds": [
+      "{処理対象の検索ディレクトリ}:{モジュールツイン：input_path}",
+      "{圧縮ファイル保存先ディレクトリ／移動先ディレクトリ}:{モジュールツイン：output_path}",
+      "{圧縮時に使用するワークディレクトリ}:{モジュールツイン：comp_workpath}"
+    ]
   }
 }
 ```
+
+記入例
+
+```json
+{
+  "HostConfig": {
+    "Binds": [
+      "/var/ftp/val20/input:/iotedge/val20/input",
+      "/var/ftp/val20/output:/iotedge/val20/output",
+      "/var/ftp/val20/comp_work:/iotedge/val20/comp_work"
+    ]
+  }
+}
+```
+
 ### startupOrder
 
 #### startupOrder の値
 
-| JSON Key      | Type    | Required | Default | Recommend | Description |
-| ------------- | ------- | -------- | ------- | --------- | ----------- |
-| startupOrder  | uint    |  | 4294967295 | 400 | モジュールの起動順序。数字が小さいほど先に起動される。<br>["0"から"4294967295"] |
+| JSON Key     | Type   | Required | Conditions                   | Default    | Recommend | Description                                            |
+| ------------ | ------ | -------- | ---------------------------- | ---------- | --------- | ------------------------------------------------------ |
+| startupOrder | number |          | 0 以上 4294967295 以下の整数 | 4294967295 | 400       | モジュールの起動順序。数字が小さいほど先に起動される。 |
 
 #### startupOrder の記入例
 
@@ -209,6 +252,7 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
   "startupOrder": 400
 }
 ```
+
 ## 受信メッセージ
 
 なし
@@ -216,21 +260,43 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 ## 送信メッセージ
 
 普段はメッセージを送信しないが、モジュールのエラーが発生した場合にメッセージ送信が行われる。
+送信にあたってのアウトプット名は固定で変更不可能。  
+
+例)
+
+```plantext
+FROM /messages/modules/<送信元Container名>/outputs/log INTO BrokeredEndpoint(\"/modules/<送信先Container名>/inputs/<input名>\")
+```
 
 ### Message Body
 
-| JSON Key     | Type   | Description |
-| ------------ | ------ | ----------- |
-| RecordHeader | array  |             |
-| &nbsp; (1)   | string | 処理時刻    |
-| RecordData   | array  | エラー内容  |
+| JSON Key     | Type         | Description |
+| ------------ | ------------ | ----------- |
+| RecordHeader | string array |             |
+| &emsp; [0]   | string       | 処理時刻    |
+| RecordData   | string array | エラー内容  |
 
 ### Message Properties
 
-| Key   | Description                |
-| ----- | -------------------------- |
-| type  | メッセージのタイプ ("log") |
-| level | ログのレベル               |
+| Key   | Description                       |
+| ----- | --------------------------------- |
+| type  | メッセージのタイプ ("log"固定)    |
+| level | ログのレベル (errorのため"3"固定) |
+
+### Message の例
+
+```json
+{
+  "Body": {
+    "RecordHeader": ["2025-09-04 15:28:21.873 +09:00"],
+    "RecordData": ["<3> 2025-09-04 15:28:21.873 +09:00 [ClassName]Log message"]
+  },
+  "Properties": {
+    "type": "log",
+    "level": "3"
+  }
+}
+```
 
 ## Direct Method
 
@@ -308,27 +374,51 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 
 ## ログ出力内容
 
-| LogLevel | 出力概要 |
-| -------- | -------- |
-| error    | [初期化/desired更新/desired取得/実行]失敗         |
-| warn     | エッジランタイムとの接続リトライ失敗<br>環境変数の1部値不正         |
-| info     | [環境変数/desired]の値<br>desired更新通知<br>環境変数の値未設定のためDefault値適用<br>desired取得成否<br>スケジューラー[開始/停止]<br>実行[開始/停止]<br>ファイルクリーナージョブ[開始/停止]         |
-| debug    | ジョブ停止<br>ファイルクリーナージョブが既に稼働中メッセージ<br>処理対象が存在しない<br>ファイル圧縮すでに実行済み     |
-| trace    | メソッドの開始・終了<br>[新規ジョブ/対象チェック/新規スケジュールジョブ追加]開始<br>[新規ジョブ/新規トリガー]作成<br>新規スケジュールジョブ追加終了<br>inputディレクトリ調査完了<br>対象名<br>処理日時情報<br>正規表現[マッチ/未設定]<br>対象情報<br>パス・ファイル名追加<br>処理進行<br>[ファイル/ディレクトリ]コピー<br>[ファイル/ディレクトリ]削除<br>[ファイル/ディレクトリ]移動     |
+| LogLevel | 出力概要                                                                                                                                                                                               |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| error    | [初期化/モジュールツイン更新/実行]失敗<br>[環境変数/モジュールツイン]の必須項目未設定<br>[環境変数/モジュールツイン]がConditionsまたはType制約違反                                                     |
+| warn     | 無し                                                                                                                                                                                                   |
+| info     | [環境変数/モジュールツイン]の値<br>モジュールツイン更新通知<br>[環境変数/モジュールツイン]の省略可能項目未設定のためDefault値適用<br>スケジューラー[開始/停止]<br>実行[開始/停止]<br>ジョブ[開始/停止] |
+| debug    | ジョブ待機<br>同一ジョブ実行中<br>処理対象日時がnull<br>スケジューラー動作チェック<br>出力先の圧縮ファイルチェック                                                                                     |
+| trace    | メソッドの開始・終了                                                                                                                                                                                   |
 
 ## ユースケース
-
-![schematic diagram](./docs/img/usecase_diagram.drawio.png)
 
 <a id="Usecase1"></a>
 
 ### ケース ①
 
-ある決まったフォルダに不定期間隔でアップロードされるファイルをファイル最終更新日時から一定時間経過後、削除する処理を決まった間隔で実行する。
+指定したディレクトリに存在する所定のファイル名のファイルを、保存して365日以上経過したら削除する。  
 
-#### desiredProperties
+![schematic diagram](./docs/img/usecase1_diagram.drawio.png)
 
-```JSON
+#### 起動順序 startupOrder
+
+| 名称         | 値  |
+| ------------ | --- |
+| startupOrder | 400 |
+
+#### 環境変数
+
+| 名称     | 値    |
+| -------- | ----- |
+| LogLevel | debug |
+
+#### コンテナーの作成オプション Create Option
+
+```json
+{
+  "HostConfig": {
+    "Binds": [
+      "/var/ftp/val20/Backup:/iotedge/val20/Backup"
+    ]
+  }
+}
+```
+
+#### モジュールツインの設定 Desired Properties
+
+```json
 {
   "info1": {
     "job_name": "val20 Backup Zip Delete",
@@ -351,51 +441,129 @@ docker push ghcr.io/<YOUR_GITHUB_USERNAME>/filecleaner:<VERSION>
 }
 ```
 
-#### 環境変数
+#### 入力内容
 
-| 環境変数 | Description |
-| -------- | ----------- |
-| LogLevel | debug       |
-| TZ       | Asia/Tokyo  |
+`/var/ftp/val20/Backup`ディレクトリに以下のファイルを保存する。  
 
-#### Container Create Options
+* `val20-{任意の文字列(6文字)}.zip`  
 
-```JSON
-{
-  "HostConfig": {
-    "Binds": [
-      "/var/ftp/val20/Backup:/iotedge/val20/Backup"
-    ]
-  }
-}
-```
+#### 処理内容
 
-#### 出力結果
-
-ex.格納されるファイルと削除する条件
-
-1. 監視対象のフォルダのパスは"/iotedge/val20/Backup"とする
-2. 削除対象となるファイル名のフォーマットは以下のいずれかである
-
-```
- Ⅰ val20-{任意の文字列(6文字)}.zip
-```
-
-3. ファイル保存日時から365日経過後、ファイルを削除する
-4. 削除処理は毎日5分おきに実行する
-
-出力結果：<br>
-条件に合致するファイルが削除される
+ファイルを保存して365日経過後、ファイルが削除される。  
+削除処理は、毎日5分おきに実行される。  
 
 <a id="Usecase2"></a>
 
 ### ケース ②
 
-ある決まったフォルダに不定期間隔でアップロードされるファイルをファイル最終更新日時から一定時間経過後、移動、圧縮、削除する処理を決まった時刻で実行する。
+指定したディレクトリに存在する所定のファイル名のファイルを、ファイル名に含まれる日付文字列から1日以上経過したら、別ディレクトリに移動する。  
 
-#### desiredProperties
+![schematic diagram](./docs/img/usecase2_diagram.drawio.png)
 
-```JSON
+#### 起動順序 startupOrder
+
+| 名称         | 値  |
+| ------------ | --- |
+| startupOrder | 400 |
+
+#### 環境変数
+
+| 名称     | 値    |
+| -------- | ----- |
+| LogLevel | debug |
+
+#### コンテナーの作成オプション Create Option
+
+```json
+{
+  "HostConfig": {
+    "Binds": [
+      "/var/ftp/val20/Backup:/iotedge/val20/Backup",
+      "/var/ftp/val20/Old:/iotedge/val20/Old"
+    ]
+  }
+}
+```
+
+#### モジュールツインの設定 Desired Properties
+
+```json
+{
+  "info1": {
+    "job_name": "val20 Backup CSV Move",
+    "timezone": "Asia/Tokyo",
+    "second": "0",
+    "minute": "5",
+    "hour": "5",
+    "day": "?",
+    "month": "*",
+    "week": "sun,tue-sat",
+    "mode": "move",
+    "target_type": "file",
+    "input_path": "/iotedge/val20/Backup",
+    "output_path": "/iotedge/val20/Old",
+    "regex_pattern": "^\\d{6}_005_(007|025)_(J|j)(P|p)013010043010(3|4|5|6)_.+\\.(C|c)(S|s)(V|v)$",
+    "elapsed_time": {
+      "judge_type": "name_prefix",
+      "date_format": "yyMMdd",
+      "day": 1
+    }
+  }
+}
+```
+
+#### 入力内容
+
+`/var/ftp/val20/Backup`ディレクトリに以下のファイルを保存する。  
+
+* {yyMMddの日付}_005_007_JP0130100430103_{任意の文字列}.CSV
+* {yyMMddの日付}_005_007_jP0130100430104_{任意の文字列}.csv
+* {yyMMddの日付}_005_007_Jp0130100430105_{任意の文字列}.CSV
+* {yyMMddの日付}_005_007_jp0130100430106_{任意の文字列}.csv
+* {yyMMddの日付}_005_025_jp0130100430103_{任意の文字列}.csv
+* {yyMMddの日付}_005_025_jP0130100430104_{任意の文字列}.CSV
+* {yyMMddの日付}_005_025_Jp0130100430105_{任意の文字列}.csv
+* {yyMMddの日付}_005_025_JP0130100430106_{任意の文字列}.CSV
+
+#### 処理内容
+
+ファイル名に含まれるyyMMddの日付から1日経過したファイルが、`/var/ftp/val20/Old`ディレクトリに移動される。  
+移動処理は、月曜日を除く05:05:00(日本時間)に実行される。  
+
+### ケース3
+
+指定したディレクトリに存在する所定のファイル名のファイルを、ファイル名に含まれる日付文字列から1日以上経過したら、圧縮して同じディレクトリに保存後、元ファイルを削除する。  
+
+![schematic diagram](./docs/img/usecase3_diagram.drawio.png)
+
+#### 起動順序 startupOrder
+
+| 名称         | 値  |
+| ------------ | --- |
+| startupOrder | 400 |
+
+#### 環境変数
+
+| 名称     | 値    |
+| -------- | ----- |
+| LogLevel | debug |
+
+#### コンテナーの作成オプション Create Option
+
+```json
+{
+  "HostConfig": {
+    "Binds": [
+      "/var/ftp/val20/Backup:/iotedge/val20/Backup",
+      "/var/ftp/val20/comp_work:/iotedge/val20/comp_work"
+    ]
+  }
+}
+```
+
+#### モジュールツインの設定 Desired Properties
+
+```json
 {
   "info1": {
     "job_name": "val20 Backup CSV Compress",
@@ -411,7 +579,8 @@ ex.格納されるファイルと削除する条件
     "input_path": "/iotedge/val20/Backup",
     "output_path": "/iotedge/val20/Backup",
     "comp_workpath": "/iotedge/val20/comp_work",
-    "regex_pattern": "^TMP_005_(007|025)_(J|j)(P|p)013010043010(3|4|5|6)_.+_(?<production_date>\\d{6}?)-\\d{4}\\.(C|c)(S|s)(V|v)_*[0-9]*$",
+    "regex_pattern": "^TMP_005_(007|025)_(J|j)(P|p)013010043010(3|4|5|6)
+                      _.+_(?<production_date>\\d{6})-\\d{4}\\.(C|c)(S|s)(V|v)_*[0-9]*$",
     "elapsed_time": {
       "judge_type": "name_regex",
       "group_name": "production_date",
@@ -430,138 +599,93 @@ ex.格納されるファイルと削除する条件
 }
 ```
 
+#### 入力内容
+
+`/var/ftp/val20/Backup`ディレクトリに以下のファイルを保存する。  
+
+* TMP_005_007_JP0130100430103_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.CSV
+* TMP_005_007_Jp0130100430104_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.csv_1
+* TMP_005_007_jP0130100430105_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.CSV_2
+* TMP_005_007_jp0130100430106_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.csv_3
+* TMP_005_025_jp0130100430103_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.csv_4
+* TMP_005_025_jP0130100430104_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.CSV_5
+* TMP_005_025_Jp0130100430105_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.csv_6
+* TMP_005_025_JP0130100430106_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.CSV_7
+
+#### 処理内容
+
+ファイル名に含まれるyyMMddの日付から1日経過したファイルが`/var/ftp/val20/comp_work`ディレクトリにコピーされた後、圧縮され`val20-{yyMMddの日付}.zip`ファイルができる。  
+圧縮されたファイル`val20-{yyMMddの日付}.zip`が`/var/ftp/val20/Backup`ディレクトリに保存された後、圧縮元ファイルが削除される。  
+上記処理は、月曜日を除く05:05:00(日本時間)に実行される。  
+
+### ケース4
+
+指定したディレクトリ直下に存在する全てのディレクトリを、  
+保存して7日以上経過したら、圧縮して別ディレクトリに保存後、元ディレクトリを削除する。  
+
+![schematic diagram](./docs/img/usecase4_diagram.drawio.png)
+
+#### 起動順序 startupOrder
+
+| 名称         | 値  |
+| ------------ | --- |
+| startupOrder | 400 |
+
 #### 環境変数
 
-| 環境変数 | Description |
-| -------- | ----------- |
-| LogLevel | debug       |
-| TZ       | Asia/Tokyo  |
+| 名称     | 値    |
+| -------- | ----- |
+| LogLevel | debug |
 
-#### Container Create Options
+#### コンテナーの作成オプション Create Option
 
-```JSON
+```json
 {
   "HostConfig": {
     "Binds": [
       "/var/ftp/val20/Backup:/iotedge/val20/Backup",
+      "/var/ftp/val20/Old:/iotedge/val20/Old",
       "/var/ftp/val20/comp_work:/iotedge/val20/comp_work"
     ]
   }
 }
 ```
 
-#### 出力結果
+#### モジュールツインの設定 Desired Properties
 
-ex.格納されるファイルと圧縮・削除する条件
-
-1. 監視対象のフォルダのパスは"/iotedge/val20/Backup"とする
-2. 圧縮・削除対象となるファイル名のフォーマットは以下のいずれかである
-
-```
- Ⅰ TMP_005_007_JP_0130100430103_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.CSV
- Ⅱ TMP_005_007_JP_0130100430104_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.CSV
- Ⅲ TMP_005_007_JP_0130100430105_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.CSV
- Ⅳ TMP_005_007_JP_0130100430106_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.CSV
- Ⅴ TMP_005_025_JP_0130100430103_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.CSV
- Ⅵ TMP_005_025_JP_0130100430104_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.CSV
- Ⅶ TMP_005_025_JP_0130100430105_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.CSV
- Ⅷ TMP_005_025_JP_0130100430106_{任意の文字列}_{yyMMddの日付}-{4桁の文字}.CSV
- Ⅸ Ⅰ～Ⅷのファイル拡張子".CSV"の後に"_{任意の数値}"を付与したファイル名
- Ⅹ Ⅰ～Ⅸの"JP"の一部または全てが小文字のパターン
- XI Ⅰ～Ⅹの"CSV"の一部または全てが小文字のパターン
-```
-
-3. 圧縮したファイルの移動先のフォルダのパスは"/iotedge/val20/Backup"とする
-4. 圧縮を行うために一時的に格納するフォルダのパスは"/iotedge/val20/comp_work"とする
-5. 圧縮単位は日単位とする
-6. 圧縮後のファイル名は"val20-{yyMMddの日付}.zip"とする
-7. 圧縮・削除処理は火水木金土日曜日の 05:05:00 (日本時間)にそれぞれ1回実行する
-
-出力結果：<br>
-条件に合致するファイルが"/iotedge/val20/Backup"で
-ファイル名"val20-{yyMMdd}.zip"形式で圧縮保存される
-
-<a id="Usecase3"></a>
-
-### ケース ③
-
-ある決まったフォルダに不定期間隔でアップロードされるファイルをファイル最終更新日時から一定時間経過後、移動する処理を決まった時刻で実行する。
-
-#### desiredProperties
-
-```JSON
+```json
 {
   "info1": {
-    "job_name": "val20 Backup CSV Move",
+    "job_name": "val20 Backup Directory Delete",
     "timezone": "Asia/Tokyo",
     "second": "0",
-    "minute": "5",
-    "hour": "5",
-    "day": "?",
+    "minute": "0/5",
+    "hour": "*",
+    "day": "*",
     "month": "*",
-    "week": "sun,tue-sat",
-    "mode": "move",
-    "target_type": "file",
+    "week": "?",
+    "mode": "compress_and_delete",
+    "target_type": "directory",
     "input_path": "/iotedge/val20/Backup",
     "output_path": "/iotedge/val20/Old",
-    "regex_pattern": "^?\\d{6}?_005_(007|025)_(J|j)(P|p)013010043010(3|4|5|6)_.+\\.(C|c)(S|s)(V|v)$",
+    "comp_workpath": "/iotedge/val20/comp_work",
     "elapsed_time": {
-      "judge_type": "name_prefix",
-      "date_format": "yyMMdd",
-      "day": 1
+      "judge_type": "update_time",
+      "day": 7
     }
   }
 }
 ```
 
-#### 環境変数
+#### 入力内容
 
-| 環境変数 | Description |
-| -------- | ----------- |
-| LogLevel | debug       |
-| TZ       | Asia/Tokyo  |
+`/var/ftp/val20/Backup`ディレクトリに任意のディレクトリを作成し、ディレクトリ内に任意のファイルを保存する。  
 
-#### Container Create Options
+#### 処理内容
 
-```JSON
-{
-  "HostConfig": {
-    "Binds": [
-      "/var/ftp/val20/Backup:/iotedge/val20/Backup",
-      "/var/ftp/val20/Old:/iotedge/val20/Old"
-    ]
-  }
-}
-```
-
-#### 出力結果
-
-ex.格納されるファイルと移動・圧縮する条件
-
-1. 監視対象のフォルダのパスは"/iotedge/val20/Backup"とする
-2. 移動対象となるファイル名のフォーマットは以下のいずれかである
-
-```
- Ⅰ {yyMMddの日付}_005_007_JP_0130100430103_{任意の文字列}_{4桁の文字}.CSV
- Ⅱ {yyMMddの日付}_005_007_JP_0130100430104_{任意の文字列}_{4桁の文字}.CSV
- Ⅲ {yyMMddの日付}_005_007_JP_0130100430105_{任意の文字列}_{4桁の文字}.CSV
- Ⅳ {yyMMddの日付}_005_007_JP_0130100430106_{任意の文字列}_{4桁の文字}.CSV
- Ⅴ {yyMMddの日付}_005_025_JP_0130100430103_{任意の文字列}_{4桁の文字}.CSV
- Ⅵ {yyMMddの日付}_005_025_JP_0130100430104_{任意の文字列}_{4桁の文字}.CSV
- Ⅶ {yyMMddの日付}_005_025_JP_0130100430105_{任意の文字列}_{4桁の文字}.CSV
- Ⅷ {yyMMddの日付}_005_025_JP_0130100430106_{任意の文字列}_{4桁の文字}.CSV
- Ⅸ Ⅰ～Ⅷの"JP"の一部または全てが小文字のパターン
- Ⅹ Ⅰ～Ⅸの"CSV"の一部または全てが小文字のパターン
-```
-
-3. ファイルの移動先のフォルダのパスは"/iotedge/val20/Old"とする
-4. 移動処理は火水木金土日曜日の 05:05:00 (日本時間)にそれぞれ1回実行する
-
-出力結果：<br>
-条件に合致するファイルが"/iotedge/val20/Old"に移動する
-
-出力結果：<br>
-条件に合致するファイルが"/iotedge/val20/Old"に移動する
+作成して7日経過したディレクトリが`/var/ftp/val20/comp_work`ディレクトリにコピーされた後、圧縮されて`<圧縮元ディレクトリ名>.zip`ファイルができる。  
+圧縮されたファイル`<圧縮元ディレクトリ名>.zip`が`/var/ftp/val20/Old`ディレクトリに保存された後、圧縮元ディレクトリが削除される。  
+上記処理は、毎日5分おきに実行される。  
 
 ## Feedback
 お気づきの点があれば、ぜひIssueにてお知らせください。
